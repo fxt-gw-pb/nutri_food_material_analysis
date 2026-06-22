@@ -74,19 +74,17 @@ npm run type-check   # 等价于 tsc --noEmit，应无报错
 ### 2. 在微信开发者工具中导入
 
 1. 打开「微信开发者工具」→ 导入项目；
-2. 目录选择本仓库根目录 `食材识别小程序/`；
-3. AppID：当前 `project.config.json` 使用占位 `touristappid`，可先选择「测试号」直接预览；
-   正式使用时替换为你自己的 AppID（建议在工具内填写，会写入已被忽略的 `project.private.config.json`）；
-4. 编译运行，即可走通完整流程。首次进入历史页会自动注入两条示例记录。
+2. 目录选择本项目根目录（含 `project.config.json`，例如 `~/WeChatProjects/miniprogram-1`）；
+3. AppID 已在 `project.config.json` 中配置为 `wxf338d5243e5cf268`；
+4. 已启用「TypeScript 编译插件」与云能力，编译运行即可走通完整流程。首次进入历史页会自动注入两条示例记录。
 
-### 3.（可选）填写本地配置
+### 3. 配置说明
 
-接入 CloudBase 前不需要任何配置。需要时：
-
-```bash
-cp miniprogram/services/config.example.ts miniprogram/services/config.ts
-# 编辑 config.ts 填入 CloudBase 环境 ID（config.ts 已被 .gitignore 忽略）
-```
+- CloudBase 环境 ID 已配置在 `miniprogram/services/config.ts`（`cloud1-d8gfgeids7d390dbc`），
+  并在 `app.ts` 的 `onLaunch` 中通过 `wx.cloud.init` 初始化。
+- 环境 ID 会随小程序下发到客户端、本身不是密钥，因此 `config.ts` 已纳入版本管理；
+  新环境部署时复制 `config.example.ts` 为 `config.ts` 并替换即可。
+- 当前数据流仍为 mock，云函数 / 云数据库就绪后再替换 service 层实现。
 
 ## mock 如何替换为 CloudBase
 
@@ -106,8 +104,9 @@ cp miniprogram/services/config.example.ts miniprogram/services/config.ts
 
 ## 安全约定
 
-- 千问 API Key 只能放在**云函数 / 后端环境变量**，前端代码与仓库不得包含；
-- 真实 AppID、CloudBase 环境 ID、密钥等均通过 `project.private.config.json` / `config.ts` / `.env` 提供，且已在 `.gitignore` 中忽略；
+- 千问 API Key 等**真正的密钥**只能放在云函数 / 后端环境变量，前端代码与仓库不得包含（`.env` 已被忽略）；
+- CloudBase 环境 ID 会下发到客户端、非密钥，故 `config.ts` 纳入版本管理；
+- `project.private.config.json`（工具本地编译设置）已被 `.gitignore` 忽略；
 - 重量始终以「预估值 + 区间 + 可信度」展示，并标注「预估结果，仅供记录参考」。
 
 ## 状态
@@ -115,5 +114,6 @@ cp miniprogram/services/config.example.ts miniprogram/services/config.ts
 - [x] 五页面 + 详情页与完整流程（mock）
 - [x] 类型与 service 层、CloudBase / 千问预留文档
 - [x] `tsc --noEmit` 通过
-- [ ] 接入 CloudBase 云存储 / 云函数 / 云数据库
+- [x] 接入微信开发者工具（AppID `wxf338d5243e5cf268`、云环境 `cloud1-d8gfgeids7d390dbc`、TS 编译插件）
+- [ ] 实现并部署云函数 `analyzeMeal`、云数据库 `meal_records`、云存储
 - [ ] 接入千问视觉模型两段式分析

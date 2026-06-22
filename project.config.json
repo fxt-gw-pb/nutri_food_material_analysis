@@ -1,22 +1,38 @@
 {
   "miniprogramRoot": "miniprogram/",
+  "cloudfunctionRoot": "cloudfunctions/",
   "projectname": "nutri-food-material-analysis",
   "description": "餐盘拍照识别与食材重量估算小程序（MVP 骨架）",
-  "appid": "touristappid",
+  "appid": "wxf338d5243e5cf268",
   "compileType": "miniprogram",
-  "libVersion": "3.4.0",
+  "libVersion": "3.16.1",
   "setting": {
     "urlCheck": false,
     "es6": true,
     "enhance": true,
     "postcss": true,
     "minified": true,
+    "newFeature": true,
+    "nodeModules": false,
+    "autoAudits": false,
+    "checkInvalidKey": true,
+    "checkSiteMap": true,
+    "uploadWithSourceMap": true,
     "useCompilerPlugins": [
       "typescript"
     ],
     "ignoreUploadUnusedFiles": true,
     "packNpmManually": false,
-    "packNpmRelationList": []
+    "packNpmRelationList": [],
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "editorSetting": {
+    "tabIndent": "insertSpaces",
+    "tabSize": 2
   },
   "condition": {}
 }

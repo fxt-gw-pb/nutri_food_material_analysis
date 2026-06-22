@@ -79,13 +79,13 @@ CloudBase
 ## 5. 初始化改造
 
 1. `npm i @cloudbase/...` 不需要——小程序直接使用内置 `wx.cloud`。
-2. 在 `project.config.json` 填入真实 `appid`。
-3. 复制 `miniprogram/services/config.example.ts` 为 `config.ts`，填入 `cloudEnv`。
-4. 在 `app.ts` 的 `onLaunch` 中调用 `wx.cloud.init({ env: CONFIG.cloudEnv })`（已预留注释）。
-5. 部署云函数 `analyzeMeal`，并在云函数环境变量中配置千问 API Key。
+2. `project.config.json` 已填入真实 `appid`（`wxf338d5243e5cf268`）。✅ 已完成
+3. `miniprogram/services/config.ts` 已填入 `cloudEnv`（`cloud1-d8gfgeids7d390dbc`）。✅ 已完成
+4. `app.ts` 的 `onLaunch` 已调用 `wx.cloud.init({ env: CONFIG.cloudEnv })`。✅ 已完成
+5. 待办：部署云函数 `analyzeMeal`，并在云函数环境变量中配置千问 API Key；创建云数据库 `meal_records`、云存储。
 
 ## 6. 安全要求
 
-- 前端绝不包含千问 API Key；Key 仅存在于云函数环境变量。
-- `config.ts`、`project.private.config.json`、`.env` 等本地配置均已在 `.gitignore` 中忽略。
+- 前端绝不包含千问 API Key；Key 仅存在于云函数环境变量（`.env` 已被忽略）。
+- CloudBase 环境 ID 会下发到客户端、非密钥，`config.ts` 纳入版本管理；`project.private.config.json` 为工具本地配置，已被忽略。
 - 重量数据始终展示为「预估值 + 区间」，不得表现为真实称重。
