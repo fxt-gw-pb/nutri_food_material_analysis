@@ -1,0 +1,78 @@
+.analyzing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 120rpx;
+}
+
+.spinner {
+  width: 96rpx;
+  height: 96rpx;
+  border: 8rpx solid var(--primary-soft);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.status-text {
+  margin-top: 40rpx;
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.progress-track {
+  width: 100%;
+  height: 14rpx;
+  background: #e9ece9;
+  border-radius: 999rpx;
+  margin-top: 48rpx;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 999rpx;
+  transition: width 0.35s ease;
+}
+.progress-label {
+  margin-top: 12rpx;
+}
+
+.steps-card {
+  width: 100%;
+  margin-top: 48rpx;
+}
+.step-row {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 0;
+  color: var(--muted);
+}
+.step-mark {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  border: 2rpx solid #d5ddd7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 24rpx;
+  font-size: 26rpx;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+.step-row.is-active .step-label { color: var(--text); font-weight: 600; }
+.step-row.is-active .step-mark { border-color: var(--primary); }
+.step-row.is-done { color: var(--text); }
+.step-row.is-done .step-mark {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.analyzing-tip {
+  margin-top: 40rpx;
+  text-align: center;
+}

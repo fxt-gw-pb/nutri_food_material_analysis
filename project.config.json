@@ -1,0 +1,22 @@
+{
+  "miniprogramRoot": "miniprogram/",
+  "projectname": "nutri-food-material-analysis",
+  "description": "餐盘拍照识别与食材重量估算小程序（MVP 骨架）",
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "libVersion": "3.4.0",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "useCompilerPlugins": [
+      "typescript"
+    ],
+    "ignoreUploadUnusedFiles": true,
+    "packNpmManually": false,
+    "packNpmRelationList": []
+  },
+  "condition": {}
+}

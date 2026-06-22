@@ -1,0 +1,109 @@
+/* 全局样式与可复用类。配色面向健康饮食记录类产品：清爽、留白、低饱和绿色。 */
+page {
+  --bg: #f5f7f6;
+  --card: #ffffff;
+  --primary: #2fae76;
+  --primary-dark: #239a64;
+  --primary-soft: #e8f6ef;
+  --text: #1f2a24;
+  --sub: #5c6b63;
+  --muted: #97a39b;
+  --border: #eef1ef;
+  --warn-bg: #fff7e8;
+  --warn-text: #9a6b16;
+
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+view, text {
+  box-sizing: border-box;
+}
+
+.container {
+  padding: 32rpx;
+  min-height: 100vh;
+}
+
+/* 卡片 */
+.card {
+  background: var(--card);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 6rpx 24rpx rgba(31, 42, 36, 0.05);
+}
+
+/* 文案层级 */
+.title-lg { font-size: 44rpx; font-weight: 700; letter-spacing: 1rpx; }
+.title-md { font-size: 34rpx; font-weight: 600; }
+.title-sm { font-size: 30rpx; font-weight: 600; }
+.sub { color: var(--sub); }
+.muted { color: var(--muted); font-size: 24rpx; }
+
+/* 按钮 */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96rpx;
+  border-radius: 999rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #ffffff;
+}
+.btn-primary.btn-disabled {
+  background: #c7d3cc;
+  color: #ffffff;
+}
+.btn-secondary {
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--sub);
+  border: 1rpx solid var(--border);
+}
+.btn-hover { opacity: 0.85; }
+
+/* 标签 / 可信度 */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+.tag-neutral { background: #f0f2f1; color: var(--sub); }
+
+/* 免责声明 */
+.disclaimer {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+/* 分隔线 */
+.divider { height: 1rpx; background: var(--border); margin: 24rpx 0; }
+
+/* 占位缩略图 */
+.thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 40rpx;
+}

@@ -1,0 +1,24 @@
+<view class="container analyzing">
+  <view class="spinner"></view>
+  <view class="status-text">{{statusText}}</view>
+
+  <!-- 进度条 -->
+  <view class="progress-track">
+    <view class="progress-bar" style="width: {{progress}}%;"></view>
+  </view>
+  <view class="muted progress-label">{{progress}}%</view>
+
+  <!-- 步骤指示 -->
+  <view class="card steps-card">
+    <view
+      wx:for="{{steps}}"
+      wx:key="status"
+      class="step-row {{item.done ? 'is-done' : ''}} {{item.active ? 'is-active' : ''}}"
+    >
+      <view class="step-mark">{{item.done ? '✓' : ''}}</view>
+      <view class="step-label">{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="muted analyzing-tip">正在为这一餐生成预估记录，请稍候…</view>
+</view>

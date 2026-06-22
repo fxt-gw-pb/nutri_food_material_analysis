@@ -1,0 +1,56 @@
+<view class="container">
+  <view class="estimate-banner">预估结果，仅供记录参考</view>
+
+  <view class="card meal-head">
+    <image wx:if="{{imageUrl}}" class="meal-img" src="{{imageUrl}}" mode="aspectFill" />
+    <view wx:else class="meal-img thumb-placeholder">🍽️</view>
+    <view class="meal-meta">
+      <view class="muted">{{dateText}}</view>
+      <view class="sub">餐盘直径 {{plateDiameterCm}} cm</view>
+      <view class="sub">共 {{dishViews.length}} 道菜</view>
+    </view>
+  </view>
+
+  <view wx:for="{{dishViews}}" wx:key="dishName" wx:for-item="dish" class="card dish">
+    <view class="dish-head">
+      <view class="title-md">{{dish.dishName}}</view>
+      <view class="tag tag-neutral">{{dish.cookingMethod}}</view>
+    </view>
+    <view class="conf-row">
+      <text class="muted">识别可信度 {{dish.recognitionConfidenceLabel}}</text>
+      <text class="muted">重量可信度 {{dish.weightConfidenceLabel}}</text>
+    </view>
+
+    <view class="total-line">
+      <text class="total-g">{{dish.estimatedTotalG}} g</text>
+      <text class="muted">区间 {{dish.minTotalG}}–{{dish.maxTotalG}} g</text>
+    </view>
+
+    <view class="record-pill">食用 {{dish.ratioText}}<block wx:if="{{dish.consumedTotalG !== null}}"> · 实际约 {{dish.consumedTotalG}} g</block></view>
+
+    <view class="divider"></view>
+
+    <view wx:for="{{dish.ingredients}}" wx:key="name" wx:for-item="ing" class="ing-row">
+      <text class="ing-name">{{ing.name}}</text>
+      <view class="ing-vals">
+        <text class="ing-est">预估 {{ing.estimatedG}} g</text>
+        <text wx:if="{{ing.consumedG !== null}}" class="ing-consumed">实际 {{ing.consumedG}} g</text>
+      </view>
+    </view>
+
+    <view class="limitations">
+      <view wx:for="{{dish.limitations}}" wx:key="*this" class="limit-item muted">· {{item}}</view>
+    </view>
+  </view>
+
+  <view class="card summary">
+    <view class="summary-row">
+      <text class="title-sm">实际摄入合计</text>
+      <text class="summary-g">{{totalConsumedG}} g</text>
+    </view>
+  </view>
+
+  <view class="disclaimer">
+    以上为基于图像的预估结果，仅供饮食记录与健康管理参考，不等同于真实称重或医学建议。
+  </view>
+</view>

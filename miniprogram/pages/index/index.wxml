@@ -1,0 +1,31 @@
+<view class="container">
+  <!-- 品牌区 -->
+  <view class="hero">
+    <view class="hero-icon">🍽️</view>
+    <view class="title-lg hero-name">餐盘识别</view>
+    <view class="hero-tagline">拍一拍，记录这一餐。</view>
+    <view class="hero-desc">识别菜品与主要食材，估算食材重量和实际摄入量。</view>
+  </view>
+
+  <!-- 主入口 -->
+  <view class="card actions">
+    <view class="btn btn-primary" hover-class="btn-hover" bindtap="goUpload">开始拍照识别</view>
+    <view class="btn btn-secondary entry-history" hover-class="btn-hover" bindtap="goHistory">历史记录</view>
+  </view>
+
+  <!-- 使用说明 -->
+  <view class="card">
+    <view class="title-sm">怎么用</view>
+    <view class="steps">
+      <view class="step"><text class="step-no">1</text><text>拍摄或选择一张餐盘照片</text></view>
+      <view class="step"><text class="step-no">2</text><text>选择餐盘直径（默认 26 cm）</text></view>
+      <view class="step"><text class="step-no">3</text><text>查看菜品、食材与预估重量</text></view>
+      <view class="step"><text class="step-no">4</text><text>选择吃了多少，自动计算摄入量</text></view>
+    </view>
+  </view>
+
+  <!-- 免责声明 -->
+  <view class="disclaimer">
+    识别结果基于图像估算，仅供饮食记录与健康管理参考，不等同于真实称重或医学建议。
+  </view>
+</view>

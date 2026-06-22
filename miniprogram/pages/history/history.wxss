@@ -1,0 +1,56 @@
+.record {
+  display: flex;
+  align-items: stretch;
+}
+.record-img {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 16rpx;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+}
+.record-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.record-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.record-summary {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-right: 16rpx;
+  flex: 1;
+}
+.record-stats {
+  display: flex;
+  gap: 28rpx;
+  margin: 6rpx 0;
+}
+.record-consumed {
+  color: var(--sub);
+  font-size: 26rpx;
+}
+.record-consumed-g {
+  color: var(--primary-dark);
+  font-weight: 700;
+}
+
+.empty {
+  padding-top: 160rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.empty-icon { font-size: 96rpx; }
+.empty-text { color: var(--sub); margin: 24rpx 0 40rpx; }
+.empty-btn { padding: 0 64rpx; }
+
+.list-tip {
+  text-align: center;
+  margin-top: 8rpx;
+}

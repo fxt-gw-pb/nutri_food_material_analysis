@@ -1,0 +1,37 @@
+<view class="container">
+  <!-- 空状态 -->
+  <view wx:if="{{loaded && items.length === 0}}" class="empty">
+    <view class="empty-icon">🥗</view>
+    <view class="empty-text">还没有饮食记录</view>
+    <view class="btn btn-primary empty-btn" hover-class="btn-hover" bindtap="goUpload">去拍一张</view>
+  </view>
+
+  <!-- 列表 -->
+  <view
+    wx:for="{{items}}"
+    wx:key="analysisId"
+    class="card record"
+    data-id="{{item.analysisId}}"
+    bindtap="goDetail"
+    bindlongpress="confirmDelete"
+  >
+    <image wx:if="{{item.imageUrl}}" class="record-img" src="{{item.imageUrl}}" mode="aspectFill" />
+    <view wx:else class="record-img thumb-placeholder">🍽️</view>
+
+    <view class="record-body">
+      <view class="record-top">
+        <text class="record-summary">{{item.dishSummary}}</text>
+        <text class="muted">{{item.dateText}}</text>
+      </view>
+      <view class="record-stats">
+        <text class="sub">预估 {{item.totalEstimatedG}} g</text>
+        <text class="sub">食用 {{item.ratioText}}</text>
+      </view>
+      <view class="record-consumed">
+        实际摄入 <text class="record-consumed-g">{{item.consumedG}} g</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loaded && items.length > 0}}" class="muted list-tip">长按记录可删除</view>
+</view>

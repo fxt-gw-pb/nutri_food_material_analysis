@@ -1,0 +1,52 @@
+.hero {
+  padding: 72rpx 16rpx 40rpx;
+  text-align: center;
+}
+.hero-icon {
+  font-size: 96rpx;
+  margin-bottom: 16rpx;
+}
+.hero-name {
+  margin-bottom: 16rpx;
+}
+.hero-tagline {
+  font-size: 32rpx;
+  color: var(--text);
+  font-weight: 600;
+}
+.hero-desc {
+  margin-top: 8rpx;
+  color: var(--sub);
+  font-size: 26rpx;
+}
+
+.actions .btn {
+  width: 100%;
+}
+.entry-history {
+  margin-top: 20rpx;
+}
+
+.steps {
+  margin-top: 16rpx;
+}
+.step {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 0;
+  color: var(--sub);
+}
+.step-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 20rpx;
+  border-radius: 999rpx;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 24rpx;
+  font-weight: 600;
+  flex-shrink: 0;
+}

@@ -1,0 +1,63 @@
+<view class="container">
+  <!-- 图片选择 / 预览 -->
+  <view class="card">
+    <view class="title-sm">餐盘照片</view>
+    <view wx:if="{{!imageUrl}}" class="picker" hover-class="btn-hover" bindtap="chooseImage">
+      <view class="picker-icon">📷</view>
+      <view class="picker-text">拍照或从相册选择</view>
+    </view>
+    <view wx:else class="preview">
+      <image class="preview-img" src="{{imageUrl}}" mode="aspectFill" />
+      <view class="preview-actions">
+        <view class="btn btn-ghost btn-sm" hover-class="btn-hover" bindtap="chooseImage">重新选择</view>
+        <view class="btn btn-ghost btn-sm" hover-class="btn-hover" bindtap="removeImage">删除</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 餐盘直径 -->
+  <view class="card">
+    <view class="title-sm">餐盘直径</view>
+    <view class="muted diameter-hint">用于估算食物面积与重量，默认 26 cm</view>
+    <view class="chips">
+      <view
+        wx:for="{{diameterOptions}}"
+        wx:key="*this"
+        class="chip {{!useCustom && selectedDiameter === item ? 'chip-active' : ''}}"
+        data-value="{{item}}"
+        bindtap="selectDiameter"
+      >{{item}} cm</view>
+      <view class="chip {{useCustom ? 'chip-active' : ''}}" bindtap="enableCustom">自定义</view>
+    </view>
+    <view wx:if="{{useCustom}}" class="custom-input">
+      <input
+        type="digit"
+        placeholder="输入直径"
+        value="{{customDiameter}}"
+        bindinput="onCustomInput"
+        class="custom-field"
+      />
+      <text class="custom-unit">cm</text>
+    </view>
+  </view>
+
+  <!-- 拍摄提示 -->
+  <view class="card">
+    <view class="title-sm">拍摄提示</view>
+    <view class="tips">
+      <view wx:for="{{tips}}" wx:key="*this" class="tip">
+        <text class="tip-dot">·</text><text>{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="disclaimer">
+    识别结果基于图像估算，仅供饮食记录与健康管理参考，不等同于真实称重或医学建议。
+  </view>
+
+  <view
+    class="btn btn-primary submit {{!imageUrl ? 'btn-disabled' : ''}}"
+    hover-class="btn-hover"
+    bindtap="startAnalyze"
+  >开始分析</view>
+</view>

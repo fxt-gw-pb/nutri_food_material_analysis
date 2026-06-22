@@ -1,0 +1,91 @@
+<view class="container">
+  <!-- 预估结果提示 -->
+  <view class="estimate-banner">预估结果，仅供记录参考</view>
+
+  <!-- 餐盘信息 -->
+  <view class="card meal-head">
+    <image wx:if="{{imageUrl}}" class="meal-img" src="{{imageUrl}}" mode="aspectFill" />
+    <view wx:else class="meal-img thumb-placeholder">🍽️</view>
+    <view class="meal-meta">
+      <view class="muted">{{dateText}}</view>
+      <view class="sub">餐盘直径 {{plateDiameterCm}} cm</view>
+      <view class="sub">共 {{dishViews.length}} 道菜</view>
+    </view>
+  </view>
+
+  <!-- 菜品卡片 -->
+  <view wx:for="{{dishViews}}" wx:key="dishId" wx:for-item="dish" wx:for-index="dishIndex" class="card dish">
+    <view class="dish-head">
+      <view class="title-md">{{dish.dishName}}</view>
+      <view class="tag tag-neutral">{{dish.cookingMethod}}</view>
+    </view>
+
+    <view class="conf-row">
+      <text class="muted">识别可信度 {{dish.recognitionConfidenceLabel}}</text>
+      <text class="muted">重量可信度 {{dish.weightConfidenceLabel}}</text>
+    </view>
+
+    <!-- 菜品总重量 -->
+    <view class="total-line">
+      <text class="total-g">{{dish.estimatedTotalG}} g</text>
+      <text class="muted">区间 {{dish.minTotalG}}–{{dish.maxTotalG}} g</text>
+    </view>
+
+    <view class="divider"></view>
+
+    <!-- 食材列表 -->
+    <view class="ing-title muted">可见主要食材</view>
+    <view wx:for="{{dish.ingredients}}" wx:key="name" wx:for-item="ing" class="ing-row">
+      <view class="ing-main">
+        <text class="ing-name">{{ing.name}}</text>
+        <text class="ing-est">{{ing.estimatedG}} g</text>
+      </view>
+      <view class="ing-sub">
+        <text class="muted">区间 {{ing.minG}}–{{ing.maxG}} g · 可信度 {{ing.confidenceLabel}}</text>
+        <text wx:if="{{ing.consumedG !== null}}" class="ing-consumed">实际 {{ing.consumedG}} g</text>
+      </view>
+    </view>
+
+    <view class="divider"></view>
+
+    <!-- 食用比例 -->
+    <view class="ing-title muted">这道菜吃了多少</view>
+    <view class="ratio-row">
+      <view
+        wx:for="{{ratioChoices}}"
+        wx:key="value"
+        wx:for-item="choice"
+        class="ratio-chip {{dish.selectedRatio === choice.value ? 'ratio-active' : ''}}"
+        data-index="{{dishIndex}}"
+        data-ratio="{{choice.value}}"
+        bindtap="selectRatio"
+      >{{choice.label}}</view>
+    </view>
+    <view wx:if="{{dish.consumedTotalG !== null}}" class="consumed-line">
+      实际摄入约 <text class="consumed-g">{{dish.consumedTotalG}} g</text>
+    </view>
+
+    <!-- 限制说明 -->
+    <view class="limitations">
+      <view wx:for="{{dish.limitations}}" wx:key="*this" class="limit-item muted">· {{item}}</view>
+    </view>
+  </view>
+
+  <!-- 摄入合计 -->
+  <view class="card summary">
+    <view class="summary-row">
+      <text class="title-sm">实际摄入合计</text>
+      <text class="summary-g">{{totalConsumedG}} g</text>
+    </view>
+    <view wx:if="{{!allSelected}}" class="muted summary-hint">选择每道菜的食用比例后自动计算</view>
+  </view>
+
+  <view class="disclaimer">
+    以上为基于图像的预估结果，仅供饮食记录与健康管理参考，不等同于真实称重或医学建议。
+  </view>
+
+  <view class="bottom-actions">
+    <view class="btn btn-secondary" hover-class="btn-hover" bindtap="goHistory">查看历史</view>
+    <view class="btn btn-primary" hover-class="btn-hover" bindtap="goHome">完成</view>
+  </view>
+</view>

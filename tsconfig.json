@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "experimentalDecorators": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "target": "ES2018",
+    "lib": ["ES2018"],
+    "esModuleInterop": true,
+    "typeRoots": ["./typings", "./node_modules"],
+    "skipLibCheck": true
+  },
+  "include": ["./miniprogram/**/*.ts", "./typings/**/*.d.ts"],
+  "exclude": ["node_modules", "miniprogram_npm"]
+}
