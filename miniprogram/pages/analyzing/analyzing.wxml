@@ -20,5 +20,5 @@
     </view>
   </view>
 
-  <view class="muted analyzing-tip">正在为这一餐生成预估记录，请稍候…</view>
+  <view class="muted analyzing-tip">正在识别这一餐的菜品，并匹配质构数据，请稍候…</view>
 </view>

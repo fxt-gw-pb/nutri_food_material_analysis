@@ -21,6 +21,27 @@
 }
 .meal-meta { flex: 1; }
 
+/* 餐次选择 */
+.mealtype-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 12rpx;
+}
+.mealtype-chip {
+  padding: 14rpx 28rpx;
+  border-radius: 999rpx;
+  background: #f0f2f1;
+  color: var(--sub);
+  font-size: 26rpx;
+}
+.mealtype-active {
+  background: var(--primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* 菜品头部 */
 .dish-head {
   display: flex;
   align-items: center;
@@ -28,92 +49,124 @@
 }
 .conf-row {
   display: flex;
-  gap: 32rpx;
-  margin-top: 8rpx;
-}
-.total-line {
-  display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 20rpx;
-  margin-top: 20rpx;
-}
-.total-g {
-  font-size: 48rpx;
-  font-weight: 700;
-  color: var(--primary-dark);
-}
-
-.ing-title {
-  margin-bottom: 8rpx;
-}
-.ing-row {
-  padding: 12rpx 0;
-}
-.ing-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-.ing-name { font-size: 30rpx; font-weight: 500; }
-.ing-est { font-size: 30rpx; font-weight: 600; }
-.ing-sub {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-top: 4rpx;
-}
-.ing-consumed { color: var(--primary-dark); font-size: 24rpx; }
-
-.ratio-row {
-  display: flex;
-  gap: 16rpx;
   margin-top: 12rpx;
 }
-.ratio-chip {
-  flex: 1;
-  text-align: center;
-  padding: 18rpx 0;
-  border-radius: 16rpx;
-  background: #f0f2f1;
-  color: var(--sub);
-  font-size: 28rpx;
+.match-tag { background: var(--primary-soft); color: var(--primary-dark); }
+.tag-edited { background: var(--warn-bg); color: var(--warn-text); }
+.match-note { margin-top: 8rpx; line-height: 1.6; }
+
+/* 食材块 */
+.ing-head {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
 }
-.ratio-active {
-  background: var(--primary);
-  color: #ffffff;
-  font-weight: 600;
+.ing-name { font-size: 32rpx; font-weight: 600; }
+
+.matched-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 8rpx;
 }
-.consumed-line {
+.matched-title { font-size: 28rpx; color: var(--sub); }
+.matched-cooking { flex-shrink: 0; }
+
+/* 软硬刻度 */
+.metric-main {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
   margin-top: 20rpx;
-  color: var(--sub);
 }
-.consumed-g {
-  color: var(--primary-dark);
-  font-weight: 700;
+.metric-label { font-size: 26rpx; color: var(--muted); flex-shrink: 0; }
+.hardness-track {
+  flex: 1;
+  height: 16rpx;
+  border-radius: 999rpx;
+  background: #eef1ef;
+  overflow: hidden;
+}
+.hardness-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #6fd3a4, #2fae76);
+}
+.metric-value {
   font-size: 32rpx;
+  font-weight: 700;
+  color: var(--primary-dark);
+  min-width: 96rpx;
+  text-align: right;
 }
 
-.limitations {
-  margin-top: 24rpx;
-  background: #fafcfb;
+.metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+.metric-pill {
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  background: #f6f8f7;
+  color: var(--sub);
+  font-size: 26rpx;
+}
+
+.unmatched {
+  margin-top: 16rpx;
+  color: var(--warn-text);
+  background: var(--warn-bg);
   border-radius: 12rpx;
   padding: 16rpx 20rpx;
-}
-.limit-item {
-  line-height: 1.7;
+  font-size: 26rpx;
 }
 
-.summary-row {
+/* 备选面板 */
+.alt-toggle {
+  margin-top: 20rpx;
+  color: var(--primary-dark);
+  font-size: 26rpx;
+}
+.alt-panel {
+  margin-top: 16rpx;
+  background: #fafcfb;
+  border-radius: 16rpx;
+  padding: 20rpx;
+}
+.alt-search {
+  background: #ffffff;
+  border: 1rpx solid var(--border);
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  margin-bottom: 16rpx;
+}
+.alt-empty { padding: 16rpx 0; }
+.alt-row {
+  background: #ffffff;
+  border: 1rpx solid var(--border);
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 12rpx;
+}
+.alt-selected {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.alt-main {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
 }
-.summary-g {
-  font-size: 44rpx;
-  font-weight: 700;
-  color: var(--primary-dark);
-}
-.summary-hint { margin-top: 8rpx; }
+.alt-title { font-size: 28rpx; font-weight: 600; }
+.alt-score { font-size: 24rpx; color: var(--primary-dark); }
+.alt-sub { margin-top: 4rpx; }
+.alt-reason { margin-top: 4rpx; line-height: 1.5; }
 
 .bottom-actions {
   display: flex;

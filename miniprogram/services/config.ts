@@ -7,9 +7,16 @@
 export const CONFIG = {
   /** CloudBase 环境 ID */
   cloudEnv: 'cloud1-d8gfgeids7d390dbc',
+  /**
+   * 数据源开关：
+   *   false → 本地 mock（默认，无需任何云资源即可跑通流程）；
+   *   true  → 真实 CloudBase（需先部署云函数 analyzeMeal、创建集合 meal_records、开通云存储）。
+   * 控制台资源就绪后改为 true 即切到真实后端，页面无需改动。
+   */
+  useCloud: true,
   /** 负责分析的云函数名 */
   analyzeFunctionName: 'analyzeMeal',
-  /** 云存储中餐盘照片的目录前缀 */
+  /** 云存储中菜品照片的目录前缀 */
   uploadDir: 'meal-images/',
 };
 

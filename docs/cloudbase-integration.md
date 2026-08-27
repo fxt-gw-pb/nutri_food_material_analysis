@@ -1,7 +1,7 @@
 # CloudBase 接入规划
 
-> 本文档描述后续接入腾讯云开发（CloudBase）所需的资源与改造点。
-> **当前阶段不创建任何云资源**，service 层全部返回 mock 数据。AppID、CloudBase 环境、云函数部署、API Key 由开发者自行完成。
+> 本文档描述本项目用到的腾讯云开发（CloudBase）资源与前端 service 的对应关系。
+> 具体的点按操作（部署云函数、配置 Key、上传发版）见 [`deploy-and-apikey.md`](./deploy-and-apikey.md)。
 
 ## 1. 总览
 
@@ -12,20 +12,22 @@
   │  wx.cloud.database()         读取/写入 meal_records
   ▼
 CloudBase
-  ├── 云存储   meal-images/      原始餐盘照片
-  ├── 云函数   analyzeMeal       调用千问视觉模型 + 几何分析 + 写库
-  └── 云数据库 meal_records      分析记录（嵌套 dishes / ingredients）
+  ├── 云存储   meal-images/      原始菜品照片
+  ├── 云函数   analyzeMeal       调用千问视觉模型识别菜名/食材 + 写库
+  └── 云数据库 meal_records      识别记录（嵌套 dishes / ingredients）
                 model_logs       模型调用日志（可选）
+
+质构数据的匹配不在云端：数据库内置在小程序包里，全部本地计算（见 ai-pipeline.md）。
 ```
 
 ## 2. 需要创建的资源
 
 ### 云存储
-- 用途：保存用户餐盘照片。
+- 用途：保存用户菜品照片。
 - 目录前缀建议：`meal-images/`（见 `services/config.example.ts` 的 `uploadDir`）。
 
 ### 云函数 `analyzeMeal`
-- 职责：调用千问视觉模型、执行图片几何分析、保存结构化结果。
+- 职责：调用千问视觉模型识别菜名 / 烹饪方式 / 原食材，保存结构化结果（不涉及重量）。
 - 详见 [`ai-pipeline.md`](./ai-pipeline.md)。
 - **千问 API Key 只能配置在云函数的环境变量中，前端不得包含。**
 
@@ -43,16 +45,14 @@ CloudBase
   _openid: string,          // 用户标识（数据库自动注入）
   imageFileId: string,      // 云存储 fileID
   imageUrl: string,         // 临时可访问地址（按需换取）
-  plateDiameterCm: number,  // 餐盘直径
-  status: AnalysisStatus,   // pending | preprocessing | stage_1_recognition
-                            // | geometry_analysis | stage_2_weight_estimation
+  status: AnalysisStatus,   // pending | preprocessing | recognizing
                             // | completed | failed
   modelName: string,        // 千问模型名
   promptVersion: string,    // prompt 版本
-  result: {                 // 分析结果，嵌套存储
-    dishes: Dish[],         // 含 ingredients
+  result: {                 // 识别结果，嵌套存储
+    dishes: Dish[],         // 菜名 / 烹饪方式 / 可信度 / ingredients（无重量）
   },
-  consumptions: ConsumptionRecord[], // 用户食用比例选择（前端计算后写回）
+  selections: TextureSelection[], // 用户在结果页手动改选的质构记录 id
   createdAt: number,
   updatedAt: number,
 }
@@ -64,7 +64,14 @@ CloudBase
 
 ## 4. service 层替换对照
 
-所有改造集中在 `miniprogram/services/mealService.ts`，**函数签名保持不变**，仅替换内部实现：
+service 层已拆分为契约 + 两套实现，由 `config.ts` 的 `useCloud` 开关分发，**页面无需改动**：
+
+- `mealService.api.ts`：`MealServiceApi` 契约（两套实现都必须满足，签名漂移会在 type-check 报错）；
+- `mealService.mock.ts`：本地 mock 实现；
+- `mealService.cloud.ts`：CloudBase 实现（已完成，对照下表）；
+- `mealService.ts`：按 `useCloud` 选择其一对外导出。
+
+下表为两套实现的对应关系（函数签名一致）：
 
 | service 函数 | 当前（mock） | 接入 CloudBase 后 |
 | --- | --- | --- |
@@ -72,7 +79,7 @@ CloudBase
 | `createMealAnalysis` | 写本地 Storage，立即生成结果 | `wx.cloud.callFunction({ name: 'analyzeMeal', data })`，返回 `analysisId` |
 | `getMealAnalysisStatus` | 按时间推进状态机 | 查询 `meal_records.status` 或 `db.collection().watch()` 实时监听 |
 | `getMealAnalysisResult` | 读本地 Storage | 查询 `meal_records` 文档 |
-| `saveDishConsumption` | 写本地 Storage | `db.collection('meal_records').doc(id).update({ consumptions })` |
+| `saveTextureSelections` | 写本地 Storage | `db.collection('meal_records').doc(id).update({ selections })` |
 | `getMealHistory` | 读本地 Storage | `db.collection('meal_records').where({ _openid }).orderBy('createdAt','desc').get()` |
 | `deleteMealRecord` | 删本地 Storage | 删除文档 + `wx.cloud.deleteFile` 清理云存储图片 |
 
@@ -82,10 +89,21 @@ CloudBase
 2. `project.config.json` 已填入真实 `appid`（`wxf338d5243e5cf268`）。✅ 已完成
 3. `miniprogram/services/config.ts` 已填入 `cloudEnv`（`cloud1-d8gfgeids7d390dbc`）。✅ 已完成
 4. `app.ts` 的 `onLaunch` 已调用 `wx.cloud.init({ env: CONFIG.cloudEnv })`。✅ 已完成
-5. 待办：部署云函数 `analyzeMeal`，并在云函数环境变量中配置千问 API Key；创建云数据库 `meal_records`、云存储。
+5. `mealService.cloud.ts` 已实现真实 `wx.cloud.*` 调用（`useCloud` 开关分发）。✅ 已完成
+6. `analyzeMeal` 云函数已接入千问 Qwen-VL（只识别、不估重）。✅ 已完成
+
+### 控制台开通清单（启用 `useCloud=true` 前需完成）
+
+- [ ] 上传部署云函数 `analyzeMeal`（右键「上传并部署：云端安装依赖」）；
+- [ ] 为 `analyzeMeal` 配置环境变量 `DASHSCOPE_API_KEY`、超时时间 60s；
+- [ ] 创建云数据库集合 `meal_records`，权限设为「仅创建者可读写」；
+- [ ] 开通云存储（图片存于 `meal-images/` 前缀下）；
+- [ ] 把 `miniprogram/services/config.ts` 的 `useCloud` 改为 `true`。
+
+逐步操作见 [`deploy-and-apikey.md`](./deploy-and-apikey.md)。
 
 ## 6. 安全要求
 
 - 前端绝不包含千问 API Key；Key 仅存在于云函数环境变量（`.env` 已被忽略）。
 - CloudBase 环境 ID 会下发到客户端、非密钥，`config.ts` 纳入版本管理；`project.private.config.json` 为工具本地配置，已被忽略。
-- 重量数据始终展示为「预估值 + 区间」，不得表现为真实称重。
+- 质构数据始终标注为「同类菜肴样本的实验室实测参考值」，不得表现为对用户这一份菜的实测，也不构成医学建议。

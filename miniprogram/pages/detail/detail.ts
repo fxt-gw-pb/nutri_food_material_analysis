@@ -1,36 +1,47 @@
 import { getMealAnalysisResult } from '../../services/mealService';
-import { Dish, ConsumptionRatio } from '../../types/index';
 import { confidenceLabel } from '../../utils/confidence';
-import { computeConsumption, totalConsumedG } from '../../utils/weight';
-import { formatDateTime, ratioLabel } from '../../utils/format';
+import { formatDateTime, mealTypeLabel } from '../../utils/format';
+import { resolveMeal, matchTypeLabel, summarizeTexture } from '../../utils/texture';
+import { candidateCookingText } from '../../services/textureMatch';
+import {
+  MetricRow,
+  metricRows,
+  hardnessLabel,
+  hardnessPercent,
+  chewinessLabel,
+  adhesivenessLabel,
+} from '../../data/textureDb';
 
-interface IngredientView {
-  name: string;
-  estimatedG: number;
-  consumedG: number | null;
+interface ItemView {
+  queryName: string;
+  matched: boolean;
+  title: string;
+  cookingText: string;
+  source: string;
+  hardnessText: string;
+  hardnessPercent: number;
+  chewinessText: string;
+  adhesivenessText: string;
+  edited: boolean;
+  /** 九项完整指标，详情页展开查看 */
+  metrics: MetricRow[];
 }
 
 interface DishView {
   dishName: string;
   cookingMethod: string;
-  estimatedTotalG: number;
-  minTotalG: number;
-  maxTotalG: number;
-  recognitionConfidenceLabel: string;
-  weightConfidenceLabel: string;
-  ratioText: string;
-  consumedTotalG: number | null;
-  ingredients: IngredientView[];
-  limitations: string[];
+  matchTypeText: string;
+  confidenceText: string;
+  items: ItemView[];
 }
 
 Page({
   data: {
     imageUrl: '',
-    plateDiameterCm: 0,
     dateText: '',
+    mealTypeText: '',
+    textureSummary: '',
     dishViews: [] as DishView[],
-    totalConsumedG: 0,
   },
 
   onLoad(query: Record<string, string | undefined>) {
@@ -41,47 +52,46 @@ Page({
     }
     getMealAnalysisResult(analysisId)
       .then((meal) => {
-        const ratioMap: Record<string, ConsumptionRatio> = {};
-        meal.consumptions.forEach((c) => {
-          ratioMap[c.dishId] = c.ratio;
-        });
-        const dishViews = meal.dishes.map((d) => this.toDishView(d, ratioMap[d.dishId]));
+        const resolved = resolveMeal(meal.dishes, meal.selections);
+        const dishViews: DishView[] = resolved.map((rd, i) => ({
+          dishName: rd.dishName,
+          cookingMethod: rd.cookingMethod,
+          matchTypeText: matchTypeLabel(rd.matchType),
+          confidenceText: confidenceLabel(
+            meal.dishes[i] ? meal.dishes[i].recognitionConfidence : 'medium',
+          ),
+          items: rd.items.map((item) => {
+            const rec = item.record;
+            return {
+              queryName: item.queryName,
+              matched: !!rec,
+              title: rec
+                ? rec.dish === rec.ingredient
+                  ? rec.dish
+                  : `${rec.dish} · ${rec.ingredient}`
+                : '未匹配到质构数据',
+              cookingText: rec ? candidateCookingText(rec.method, rec.minutes) : '',
+              source: rec ? rec.source : '',
+              hardnessText: rec ? hardnessLabel(rec.metrics.hardness) : '—',
+              hardnessPercent: rec ? hardnessPercent(rec.metrics.hardness) : 0,
+              chewinessText: rec ? chewinessLabel(rec.metrics.chewiness) : '—',
+              adhesivenessText: rec ? adhesivenessLabel(rec.metrics.adhesiveness) : '—',
+              edited: item.edited,
+              metrics: rec ? metricRows(rec.metrics) : [],
+            };
+          }),
+        }));
         this.setData({
           imageUrl: meal.imageUrl,
-          plateDiameterCm: meal.plateDiameterCm,
           dateText: formatDateTime(meal.createdAt),
+          mealTypeText: mealTypeLabel(meal.mealType),
+          textureSummary: summarizeTexture(resolved),
           dishViews,
-          totalConsumedG: totalConsumedG(meal.consumptions),
         });
       })
       .catch((err) => {
         console.error('[detail] load failed', err);
         wx.showToast({ title: '加载失败', icon: 'none' });
       });
-  },
-
-  toDishView(dish: Dish, ratio?: ConsumptionRatio): DishView {
-    const consumption = ratio ? computeConsumption(dish, ratio) : null;
-    const consumedMap: Record<string, number> = {};
-    consumption?.consumedIngredients.forEach((ci) => {
-      consumedMap[ci.name] = ci.consumedG;
-    });
-    return {
-      dishName: dish.dishName,
-      cookingMethod: dish.cookingMethod,
-      estimatedTotalG: dish.estimatedTotalG,
-      minTotalG: dish.minTotalG,
-      maxTotalG: dish.maxTotalG,
-      recognitionConfidenceLabel: confidenceLabel(dish.recognitionConfidence),
-      weightConfidenceLabel: confidenceLabel(dish.weightConfidence),
-      ratioText: ratio ? ratioLabel(ratio) : '未记录',
-      consumedTotalG: consumption ? consumption.consumedTotalG : null,
-      ingredients: dish.ingredients.map((ing) => ({
-        name: ing.name,
-        estimatedG: ing.estimatedG,
-        consumedG: consumption ? consumedMap[ing.name] ?? null : null,
-      })),
-      limitations: dish.limitations,
-    };
   },
 });

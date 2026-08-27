@@ -1,10 +1,10 @@
 import { getMealHistory, deleteMealRecord } from '../../services/mealService';
 import { MealHistoryItem } from '../../types/index';
-import { formatDate, ratioLabel } from '../../utils/format';
+import { formatDate, mealTypeLabel } from '../../utils/format';
 
 interface HistoryItemView extends MealHistoryItem {
   dateText: string;
-  ratioText: string;
+  mealTypeText: string;
 }
 
 Page({
@@ -14,7 +14,7 @@ Page({
   },
 
   onShow() {
-    // 每次进入都刷新，确保新分析后的记录及时出现。
+    // 每次进入都刷新，确保新识别的记录及时出现。
     this.loadHistory();
   },
 
@@ -24,7 +24,7 @@ Page({
         const views: HistoryItemView[] = items.map((it) => ({
           ...it,
           dateText: formatDate(it.date),
-          ratioText: it.ratio ? ratioLabel(it.ratio) : '未记录',
+          mealTypeText: mealTypeLabel(it.mealType),
         }));
         this.setData({ items: views, loaded: true });
       })
@@ -43,7 +43,7 @@ Page({
     const analysisId = e.currentTarget.dataset.id as string;
     wx.showModal({
       title: '删除记录',
-      content: '确定删除这条饮食记录吗？',
+      content: '确定删除这条识别记录吗？',
       confirmColor: '#d04a3b',
       success: (res) => {
         if (res.confirm) {

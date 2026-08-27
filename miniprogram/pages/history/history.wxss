@@ -31,11 +31,11 @@
   gap: 28rpx;
   margin: 6rpx 0;
 }
-.record-consumed {
+.record-texture {
   color: var(--sub);
   font-size: 26rpx;
 }
-.record-consumed-g {
+.record-texture-value {
   color: var(--primary-dark);
   font-weight: 700;
 }

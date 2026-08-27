@@ -1,86 +1,82 @@
 // 核心数据类型定义。
-// 这些类型同时约束前端展示、mock service 和未来的 CloudBase 云函数返回结构。
+// 这些类型同时约束前端展示、mock service 和 CloudBase 云函数的返回结构。
+//
+// 本版本只做「菜品识别 → 质构数据匹配」，不再估算食材重量。
 
 /** 可信度等级（统一使用 高 / 中 / 低 三档） */
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
-/** 食用比例：1/4、1/2、3/4、全吃完 */
-export type ConsumptionRatio = 0.25 | 0.5 | 0.75 | 1;
+/** 餐次类型 */
+export type MealType =
+  | 'breakfast'
+  | 'morning_snack'
+  | 'lunch'
+  | 'afternoon_snack'
+  | 'dinner'
+  | 'evening_snack';
 
 /**
  * 分析异步任务状态机。
- * 与未来云函数 analyzeMeal 的真实状态保持一致，便于前端无需改动即可对接。
+ * 与云函数 analyzeMeal 的真实状态保持一致，前端只负责展示。
  */
 export type AnalysisStatus =
   | 'pending'
   | 'preprocessing'
-  | 'stage_1_recognition'
-  | 'geometry_analysis'
-  | 'stage_2_weight_estimation'
+  | 'recognizing'
   | 'completed'
   | 'failed';
 
-/** 单种食材的识别与重量估算结果 */
-export interface Ingredient {
+/** 视觉模型识别出的一种原食材 */
+export interface RecognizedIngredient {
   name: string;
-  /** 预估重量（整数 g） */
-  estimatedG: number;
-  /** 重量区间下限（整数 g） */
-  minG: number;
-  /** 重量区间上限（整数 g） */
-  maxG: number;
-  confidence: ConfidenceLevel;
+  /** 该食材的烹饪方式（如 煮 / 蒸 / 炒），模型给不出时为空 */
+  cookingMethod?: string;
 }
 
-/** 单道菜的识别与重量估算结果 */
+/** 视觉模型识别出的一道菜（不含任何重量信息） */
 export interface Dish {
   dishId: string;
   dishName: string;
-  /** 烹饪方式，如 炒 / 蒸 / 红烧 */
+  /** 整道菜的烹饪方式，如 炒 / 蒸 / 红烧 */
   cookingMethod: string;
-  estimatedTotalG: number;
-  minTotalG: number;
-  maxTotalG: number;
   /** 菜品识别可信度 */
   recognitionConfidence: ConfidenceLevel;
-  /** 重量估算可信度 */
-  weightConfidence: ConfidenceLevel;
-  ingredients: Ingredient[];
-  /** 估算限制说明，展示给用户以避免误读为真实称重 */
-  limitations: string[];
+  /** 识别出的原食材列表 */
+  ingredients: RecognizedIngredient[];
 }
 
-/** 用户对单道菜的食用记录（由前端根据比例计算，不再调用大模型） */
-export interface ConsumptionRecord {
+/**
+ * 用户对某道菜的质构匹配选择。
+ * 匹配本身由本地质构数据库实时算出（services/textureMatch.ts），
+ * 这里只记录「用户最终选中了哪条数据」，键为识别侧的食材名。
+ */
+export interface TextureSelection {
   dishId: string;
-  ratio: ConsumptionRatio;
-  /** 实际摄入该菜品的重量（整数 g） */
-  consumedTotalG: number;
-  /** 实际摄入各食材的重量（整数 g） */
-  consumedIngredients: { name: string; consumedG: number }[];
+  /** queryName（识别出的食材名） → 质构库记录 id */
+  picks: { queryName: string; recordId: string }[];
 }
 
 /**
  * 一次完整的餐盘分析记录。
- * 对应未来 CloudBase 云数据库集合 meal_records 的一条文档。
- * 其中 dishes / consumptions 在数据库中建议嵌套于 result 字段内（见 docs/cloudbase-integration.md）。
+ * 对应 CloudBase 云数据库集合 meal_records 的一条文档。
+ * dishes 在数据库中嵌套于 result 字段内（见 docs/cloudbase-integration.md）。
  */
 export interface MealAnalysis {
   analysisId: string;
-  /** CloudBase 云存储 fileID（预留，mock 阶段为空） */
+  /** CloudBase 云存储 fileID */
   imageFileId?: string;
   /** 可访问的图片地址；mock 阶段为本地临时路径 */
   imageUrl: string;
-  /** 餐盘直径（cm），用于几何尺度估算 */
-  plateDiameterCm: number;
   status: AnalysisStatus;
-  /** 预留：千问模型名 */
+  /** 餐次（早餐 / 午餐 / 加餐…），由结果页选择 */
+  mealType?: MealType;
+  /** 千问模型名 */
   modelName?: string;
-  /** 预留：prompt 版本 */
+  /** prompt 版本 */
   promptVersion?: string;
   dishes: Dish[];
-  /** 用户食用比例选择结果 */
-  consumptions: ConsumptionRecord[];
+  /** 用户在结果页改选后的匹配结果；为空表示全部采用自动匹配 */
+  selections: TextureSelection[];
   createdAt: number;
   updatedAt: number;
   /** 仅 mock 阶段使用：用于模拟分析进度推进的起始时间戳 */
@@ -92,14 +88,12 @@ export interface MealHistoryItem {
   analysisId: string;
   /** 创建时间戳 */
   date: number;
+  /** 餐次 */
+  mealType?: MealType;
   imageUrl: string;
-  /** 菜品摘要，如 "西兰花炒鸡胸肉、番茄炒蛋" */
+  /** 菜品摘要，如 "大煮干丝、清蒸石斑鱼" */
   dishSummary: string;
   dishCount: number;
-  /** 总预估重量（整数 g） */
-  totalEstimatedG: number;
-  /** 实际摄入合计重量（整数 g），未选择比例时为 0 */
-  consumedG: number;
-  /** 首道菜的食用比例，用于摘要展示；未选择时为 undefined */
-  ratio?: ConsumptionRatio;
+  /** 质构摘要，如 "偏软 · 好嚼" */
+  textureSummary: string;
 }

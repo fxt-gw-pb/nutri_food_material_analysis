@@ -10,9 +10,15 @@
 export const CONFIG = {
   /** CloudBase 环境 ID（在微信开发者工具 / 腾讯云控制台获取） */
   cloudEnv: 'YOUR_CLOUDBASE_ENV_ID',
+  /**
+   * 数据源开关：
+   *   false → 本地 mock（默认，无需任何云资源即可跑通流程）；
+   *   true  → 真实 CloudBase（需先部署云函数 analyzeMeal、创建集合 meal_records、开通云存储）。
+   */
+  useCloud: false,
   /** 负责分析的云函数名 */
   analyzeFunctionName: 'analyzeMeal',
-  /** 云存储中餐盘照片的目录前缀 */
+  /** 云存储中菜品照片的目录前缀 */
   uploadDir: 'meal-images/',
 };
 

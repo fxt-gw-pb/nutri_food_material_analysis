@@ -2,7 +2,7 @@
   <!-- 空状态 -->
   <view wx:if="{{loaded && items.length === 0}}" class="empty">
     <view class="empty-icon">🥗</view>
-    <view class="empty-text">还没有饮食记录</view>
+    <view class="empty-text">还没有识别记录</view>
     <view class="btn btn-primary empty-btn" hover-class="btn-hover" bindtap="goUpload">去拍一张</view>
   </view>
 
@@ -24,12 +24,10 @@
         <text class="muted">{{item.dateText}}</text>
       </view>
       <view class="record-stats">
-        <text class="sub">预估 {{item.totalEstimatedG}} g</text>
-        <text class="sub">食用 {{item.ratioText}}</text>
+        <text class="tag">{{item.mealTypeText}}</text>
+        <text class="sub">{{item.dishCount}} 道菜</text>
       </view>
-      <view class="record-consumed">
-        实际摄入 <text class="record-consumed-g">{{item.consumedG}} g</text>
-      </view>
+      <view class="record-texture">整体 <text class="record-texture-value">{{item.textureSummary}}</text></view>
     </view>
   </view>
 

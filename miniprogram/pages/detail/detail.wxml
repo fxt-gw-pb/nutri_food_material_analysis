@@ -1,56 +1,66 @@
 <view class="container">
-  <view class="estimate-banner">预估结果，仅供记录参考</view>
+  <view class="estimate-banner">质构数据为同类菜肴实测参考值</view>
 
   <view class="card meal-head">
     <image wx:if="{{imageUrl}}" class="meal-img" src="{{imageUrl}}" mode="aspectFill" />
     <view wx:else class="meal-img thumb-placeholder">🍽️</view>
     <view class="meal-meta">
       <view class="muted">{{dateText}}</view>
-      <view class="sub">餐盘直径 {{plateDiameterCm}} cm</view>
-      <view class="sub">共 {{dishViews.length}} 道菜</view>
+      <view class="sub"><text class="tag">{{mealTypeText}}</text> · 共 {{dishViews.length}} 道菜</view>
+      <view class="sub">整体 {{textureSummary}}</view>
     </view>
   </view>
 
   <view wx:for="{{dishViews}}" wx:key="dishName" wx:for-item="dish" class="card dish">
     <view class="dish-head">
       <view class="title-md">{{dish.dishName}}</view>
-      <view class="tag tag-neutral">{{dish.cookingMethod}}</view>
+      <view class="tag tag-neutral" wx:if="{{dish.cookingMethod}}">{{dish.cookingMethod}}</view>
     </view>
     <view class="conf-row">
-      <text class="muted">识别可信度 {{dish.recognitionConfidenceLabel}}</text>
-      <text class="muted">重量可信度 {{dish.weightConfidenceLabel}}</text>
+      <text class="tag match-tag">{{dish.matchTypeText}}</text>
+      <text class="muted">识别可信度 {{dish.confidenceText}}</text>
     </view>
 
-    <view class="total-line">
-      <text class="total-g">{{dish.estimatedTotalG}} g</text>
-      <text class="muted">区间 {{dish.minTotalG}}–{{dish.maxTotalG}} g</text>
-    </view>
-
-    <view class="record-pill">食用 {{dish.ratioText}}<block wx:if="{{dish.consumedTotalG !== null}}"> · 实际约 {{dish.consumedTotalG}} g</block></view>
-
-    <view class="divider"></view>
-
-    <view wx:for="{{dish.ingredients}}" wx:key="name" wx:for-item="ing" class="ing-row">
-      <text class="ing-name">{{ing.name}}</text>
-      <view class="ing-vals">
-        <text class="ing-est">预估 {{ing.estimatedG}} g</text>
-        <text wx:if="{{ing.consumedG !== null}}" class="ing-consumed">实际 {{ing.consumedG}} g</text>
+    <view wx:for="{{dish.items}}" wx:key="queryName" wx:for-item="item" class="ing-block">
+      <view class="divider"></view>
+      <view class="ing-head">
+        <text class="ing-name">{{item.queryName}}</text>
+        <text wx:if="{{item.edited}}" class="tag tag-edited">已手动改选</text>
       </view>
-    </view>
 
-    <view class="limitations">
-      <view wx:for="{{dish.limitations}}" wx:key="*this" class="limit-item muted">· {{item}}</view>
-    </view>
-  </view>
+      <block wx:if="{{item.matched}}">
+        <view class="matched-line">
+          <text class="matched-title">{{item.title}}</text>
+          <text class="muted matched-cooking">{{item.cookingText}}</text>
+        </view>
 
-  <view class="card summary">
-    <view class="summary-row">
-      <text class="title-sm">实际摄入合计</text>
-      <text class="summary-g">{{totalConsumedG}} g</text>
+        <view class="metric-main">
+          <text class="metric-label">软硬</text>
+          <view class="hardness-track">
+            <view class="hardness-bar" style="width: {{item.hardnessPercent}}%;"></view>
+          </view>
+          <text class="metric-value">{{item.hardnessText}}</text>
+        </view>
+
+        <view class="metric-row">
+          <text class="metric-pill">嚼起来 {{item.chewinessText}}</text>
+          <text class="metric-pill">{{item.adhesivenessText}}</text>
+        </view>
+
+        <!-- 九项完整指标 -->
+        <view class="metric-table">
+          <view wx:for="{{item.metrics}}" wx:key="label" wx:for-item="m" class="metric-line">
+            <text class="metric-name muted">{{m.label}}</text>
+            <text class="metric-num">{{m.value}}<text class="metric-unit muted"> {{m.unit}}</text></text>
+          </view>
+        </view>
+        <view class="muted source-line">数据出处：{{item.source}}</view>
+      </block>
+      <view wx:else class="unmatched">未匹配到质构数据</view>
     </view>
   </view>
 
   <view class="disclaimer">
-    以上为基于图像的预估结果，仅供饮食记录与健康管理参考，不等同于真实称重或医学建议。
+    质构数据来自实验室对同类菜肴样本的 TPA 全质构测试，仅供参考软硬与咀嚼难度，不等同于您这一份菜的实测值，也不构成医学建议。
   </view>
 </view>
