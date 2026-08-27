@@ -1,6 +1,7 @@
 // 云函数 analyzeMeal —— 菜品识别（千问 Qwen-VL），单段异步。
 //
-// 本版本只做「看图说出菜名 + 烹饪方式 + 原食材」，不再估算任何重量。
+// 本版本只做「看图说出这道菜的菜名 + 烹饪方式 + 原食材」，不再估算任何重量。
+// 一次识别只出一道菜——图里有多样菜时挑最主要的那一道。
 // 质构数据的匹配全部在小程序端用内置数据库完成（miniprogram/services/textureMatch.ts）。
 //
 // 两个 action（由前端分两次调用，见 mealService.cloud.ts）：
@@ -21,7 +22,7 @@ const COLLECTION = 'meal_records';
 // DashScope OpenAI 兼容模式端点
 const DASHSCOPE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
 const MODEL = 'qwen-vl-max'; // 可换 qwen-vl-plus（更省）或 -latest 变体
-const PROMPT_VERSION = 'qwen-dish-recognition-v2';
+const PROMPT_VERSION = 'qwen-single-dish-v3';
 
 exports.main = async (event) => {
   if (event.action === 'process') {
@@ -42,8 +43,8 @@ async function createAnalysis(event) {
       status: 'pending',
       modelName: MODEL,
       promptVersion: PROMPT_VERSION,
-      result: { dishes: [] },
-      selections: [],
+      result: { dish: null },
+      selectedDish: '',
       createdAt: now,
       updatedAt: now,
     },
@@ -62,10 +63,10 @@ async function processAnalysis(analysisId) {
     const imageUrl = await resolveImageUrl(doc.imageFileId);
 
     await setStatus(analysisId, 'recognizing');
-    const dishes = await callQwen(imageUrl);
+    const dish = await callQwen(imageUrl);
 
     await db.collection(COLLECTION).doc(analysisId).update({
-      data: { 'result.dishes': dishes, status: 'completed', updatedAt: Date.now() },
+      data: { 'result.dish': dish, status: 'completed', updatedAt: Date.now() },
     });
     return { ok: true };
   } catch (err) {
@@ -119,33 +120,36 @@ async function callQwen(imageUrl) {
     resp.data && resp.data.choices && resp.data.choices[0] && resp.data.choices[0].message
       ? resp.data.choices[0].message.content
       : '';
-  return parseDishes(content);
+  return parseDish(content);
 }
 
 const SYSTEM_PROMPT =
-  '你是专业的中餐菜品识别助手。根据餐盘照片说出每一道菜的菜名、整道菜的烹饪方式，' +
+  '你是专业的中餐菜品识别助手。根据照片说出【一道】菜的菜名、整道菜的烹饪方式，' +
   '以及这道菜里可分辨的原食材及其各自的烹饪方式。不需要估计重量或份量。' +
   '只输出 JSON，不要任何解释文字或 markdown 代码块。';
 
 const USER_PROMPT = [
-  '识别照片里的每一道菜，严格按以下 JSON 结构输出（字段名与类型完全一致）：',
-  '{"dishes":[{"dishName":"string","cookingMethod":"string",' +
+  '识别照片里最主要的那一道菜（只出一道），严格按以下 JSON 结构输出（字段名与类型完全一致）：',
+  '{"dish":{"dishName":"string","cookingMethod":"string",' +
     '"recognitionConfidence":"high|medium|low",' +
-    '"ingredients":[{"name":"string","cookingMethod":"string"}]}]}',
+    '"ingredients":[{"name":"string","cookingMethod":"string"}]}}',
   '约束：',
+  '- 图里出现多样菜时，只输出占比最大、最像「主菜」的那一道，不要输出多道；',
   '- dishName 用最常见的中文标准菜名（如 大煮干丝 / 清蒸石斑鱼 / 红烧肉），不要加形容词或份量；',
   '- cookingMethod 用单个简短中文词：煮/炖/蒸/炒/炸/煎/烤/焖/烧/卤/凉拌/白灼/爆炒/红烧/清蒸 等；',
   '- ingredients 列出这道菜中肉眼可分辨的主要原食材（一般 1–4 种），name 用食材本名并保留刀工，' +
     '如 豆腐丝 / 火腿丝 / 排骨 / 白菜帮；每种食材的 cookingMethod 写它在这道菜里的受热方式；',
   '- recognitionConfidence 只能取 "high"/"medium"/"low"；',
-  '- 若图中没有可识别的食物，dishes 返回空数组 []。',
+  '- 若图中没有可识别的食物，输出 {"dish":null}。',
 ].join('\n');
 
-function parseDishes(content) {
+function parseDish(content) {
   if (!content) throw new Error('千问返回空内容');
   const json = extractJson(content);
-  const arr = Array.isArray(json.dishes) ? json.dishes : [];
-  return arr.map((d, i) => normalizeDish(d, i));
+  // 兼容模型仍按数组返回的情况：取第一道。
+  const raw = json.dish || (Array.isArray(json.dishes) ? json.dishes[0] : null);
+  if (!raw || !raw.dishName) return null;
+  return normalizeDish(raw);
 }
 
 function extractJson(text) {
@@ -164,7 +168,7 @@ function level(v) {
   return LEVELS.indexOf(v) >= 0 ? v : 'medium';
 }
 
-function normalizeDish(d, i) {
+function normalizeDish(d) {
   const dishName = String((d && d.dishName) || '未知菜品').trim();
   const cookingMethod = String((d && d.cookingMethod) || '').trim();
   const rawIngredients = Array.isArray(d && d.ingredients) ? d.ingredients : [];
@@ -175,7 +179,6 @@ function normalizeDish(d, i) {
     }))
     .filter((ing) => ing.name);
   return {
-    dishId: `dish_${i + 1}`,
     dishName,
     cookingMethod,
     recognitionConfidence: level(d && d.recognitionConfidence),

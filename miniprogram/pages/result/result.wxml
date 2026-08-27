@@ -7,7 +7,8 @@
     <view wx:else class="meal-img thumb-placeholder">🍽️</view>
     <view class="meal-meta">
       <view class="muted">{{dateText}}</view>
-      <view class="sub">共识别出 {{dishViews.length}} 道菜</view>
+      <view class="sub">识别为 {{recognizedName}}</view>
+      <view class="sub" wx:if="{{cookingMethod}}">烹饪方式 {{cookingMethod}} · 可信度 {{confidenceText}}</view>
     </view>
   </view>
 
@@ -26,85 +27,87 @@
     </view>
   </view>
 
-  <!-- 菜品卡片 -->
-  <view wx:for="{{dishViews}}" wx:key="dishId" wx:for-item="dish" wx:for-index="dishIndex" class="card dish">
+  <!-- 匹配到的菜 + 它的源数据 -->
+  <view class="card dish">
     <view class="dish-head">
-      <view class="title-md">{{dish.dishName}}</view>
-      <view class="tag tag-neutral" wx:if="{{dish.cookingMethod}}">{{dish.cookingMethod}}</view>
+      <view class="title-md">{{matched ? matchedDish : '未匹配到菜品'}}</view>
+      <view class="tag match-tag">{{matchTypeText}}</view>
     </view>
-    <view class="conf-row">
-      <text class="tag match-tag">{{dish.matchTypeText}}</text>
-      <text class="muted">识别可信度 {{dish.confidenceText}}</text>
+    <view class="muted match-note">{{matchNote}}</view>
+    <view wx:if="{{edited}}" class="edited-row">
+      <text class="tag tag-edited">已手动改选</text>
+      <text class="reset-link" bindtap="resetSelection">恢复自动匹配</text>
     </view>
-    <view class="muted match-note">{{dish.matchNote}}</view>
 
-    <!-- 每种原食材一块 -->
-    <view wx:for="{{dish.items}}" wx:key="queryName" wx:for-item="item" wx:for-index="itemIndex" class="ing-block">
-      <view class="divider"></view>
-
-      <view class="ing-head">
-        <text class="ing-name">{{item.queryName}}</text>
-        <text wx:if="{{item.edited}}" class="tag tag-edited">已手动改选</text>
+    <block wx:if="{{matched}}">
+      <view class="summary-line">
+        <text class="summary-label muted">整体</text>
+        <text class="summary-value">{{summary}}</text>
       </view>
 
-      <block wx:if="{{item.matched}}">
-        <view class="matched-line">
-          <text class="matched-title">{{item.title}}</text>
-          <text class="muted matched-cooking">{{item.cookingText}}</text>
+      <view class="divider"></view>
+      <view class="ing-title muted">这道菜的实测数据（{{rows.length}} 项取样）</view>
+
+      <!-- 一种原食材一行；整菜取样时只有一行 -->
+      <view wx:for="{{rows}}" wx:key="source" wx:for-item="row" class="row-block">
+        <view class="row-head">
+          <text class="ing-name">{{row.wholeDish ? '整菜取样' : row.ingredient}}</text>
+          <text class="muted">{{row.cookingText}}</text>
         </view>
 
-        <!-- 软硬刻度 -->
         <view class="metric-main">
           <text class="metric-label">软硬</text>
           <view class="hardness-track">
-            <view class="hardness-bar" style="width: {{item.hardnessPercent}}%;"></view>
+            <view class="hardness-bar" style="width: {{row.hardnessPercent}}%;"></view>
           </view>
-          <text class="metric-value">{{item.hardnessText}}</text>
+          <text class="metric-value">{{row.hardnessText}}</text>
         </view>
 
         <view class="metric-row">
-          <text class="metric-pill">嚼起来 {{item.chewinessText}}</text>
-          <text class="metric-pill">{{item.adhesivenessText}}</text>
+          <text class="metric-pill">嚼起来 {{row.chewinessText}}</text>
+          <text class="metric-pill">{{row.adhesivenessText}}</text>
         </view>
-      </block>
-      <view wx:else class="unmatched">库里没有足够接近的数据，请在下方自己选一个</view>
 
-      <!-- 相似备选 -->
-      <view
-        class="alt-toggle"
-        data-dish="{{dishIndex}}"
-        data-item="{{itemIndex}}"
-        bindtap="toggleCandidates"
-      >{{item.expanded ? '收起备选 ▲' : '不像？换一个 ▼'}}</view>
-
-      <view wx:if="{{item.expanded}}" class="alt-panel">
-        <input
-          class="alt-search"
-          type="text"
-          placeholder="也可以直接搜菜名或食材，如「豆腐」"
-          value="{{item.keyword}}"
-          data-dish="{{dishIndex}}"
-          data-item="{{itemIndex}}"
-          bindinput="onSearchInput"
-        />
-        <view wx:if="{{item.candidates.length === 0}}" class="muted alt-empty">没有找到相关数据</view>
-        <view
-          wx:for="{{item.candidates}}"
-          wx:key="recordId"
-          wx:for-item="cand"
-          class="alt-row {{cand.selected ? 'alt-selected' : ''}}"
-          data-dish="{{dishIndex}}"
-          data-item="{{itemIndex}}"
-          data-id="{{cand.recordId}}"
-          bindtap="selectCandidate"
-        >
-          <view class="alt-main">
-            <text class="alt-title">{{cand.title}}</text>
-            <text class="alt-score">{{cand.scorePercent}}%</text>
+        <view class="metric-table">
+          <view wx:for="{{row.metrics}}" wx:key="label" wx:for-item="m" class="metric-line">
+            <text class="metric-name muted">{{m.label}}</text>
+            <text class="metric-num">{{m.value}}<text class="metric-unit muted"> {{m.unit}}</text></text>
           </view>
-          <view class="alt-sub muted">{{cand.cookingText}} · {{cand.categoryText}}</view>
-          <view class="alt-reason muted">{{cand.reason}}</view>
         </view>
+      </view>
+    </block>
+    <view wx:else class="unmatched">库里没有足够接近的菜，请在下方自己选一道</view>
+  </view>
+
+  <!-- 换一道菜 -->
+  <view class="card">
+    <view class="alt-toggle" bindtap="togglePicker">
+      {{pickerOpen ? '收起备选 ▲' : '不是这道菜？换一个 ▼'}}
+    </view>
+
+    <view wx:if="{{pickerOpen}}" class="alt-panel">
+      <input
+        class="alt-search"
+        type="text"
+        placeholder="也可以直接搜菜名或食材，如「豆腐」"
+        value="{{keyword}}"
+        bindinput="onSearchInput"
+      />
+      <view wx:if="{{candidates.length === 0}}" class="muted alt-empty">没有找到相关菜品</view>
+      <view
+        wx:for="{{candidates}}"
+        wx:key="dish"
+        wx:for-item="cand"
+        class="alt-row {{cand.selected ? 'alt-selected' : ''}}"
+        data-dish="{{cand.dish}}"
+        bindtap="selectDish"
+      >
+        <view class="alt-main">
+          <text class="alt-title">{{cand.dish}}</text>
+          <text class="alt-score">{{cand.scorePercent}}%</text>
+        </view>
+        <view class="alt-sub muted">{{cand.ingredientText}} · {{cand.cookingText}} · {{cand.category}}</view>
+        <view class="alt-reason muted">{{cand.reason}}</view>
       </view>
     </view>
   </view>

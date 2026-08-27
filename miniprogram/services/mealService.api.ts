@@ -3,13 +3,7 @@
 // 此接口，由 mealService.ts 按 config.useCloud 选择其一对外导出。
 // 任何一侧签名漂移都会在 type-check 时报错，从而保证两套实现始终对齐。
 
-import {
-  MealAnalysis,
-  AnalysisStatus,
-  TextureSelection,
-  MealHistoryItem,
-  MealType,
-} from '../types/index';
+import { MealAnalysis, AnalysisStatus, MealHistoryItem, MealType } from '../types/index';
 
 export interface CreateMealAnalysisParams {
   imageUrl: string;
@@ -27,8 +21,8 @@ export interface MealServiceApi {
   ): Promise<{ status: AnalysisStatus; progress: number }>;
   /** 读取完整分析结果 */
   getMealAnalysisResult(analysisId: string): Promise<MealAnalysis>;
-  /** 保存用户在结果页改选的质构匹配项 */
-  saveTextureSelections(analysisId: string, selections: TextureSelection[]): Promise<void>;
+  /** 保存用户在结果页手动改选的库中菜名（传空串表示恢复自动匹配） */
+  saveSelectedDish(analysisId: string, selectedDish: string): Promise<void>;
   /** 保存餐次（早餐 / 午餐 / 加餐…） */
   saveMealType(analysisId: string, mealType: MealType): Promise<void>;
   /** 获取历史记录列表（仅已完成的分析） */

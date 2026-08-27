@@ -4,7 +4,7 @@
     <view class="hero-icon">🍽️</view>
     <view class="title-lg hero-name">菜品质构识别</view>
     <view class="hero-tagline">拍一拍，看看这道菜好不好嚼。</view>
-    <view class="hero-desc">识别菜名与原食材，匹配 500 道菜肴的实测质构数据（硬度、咀嚼性等）。</view>
+    <view class="hero-desc">认出这是哪道菜，列出它在 500 道菜肴质构库里的实测数据（硬度、咀嚼性等）。</view>
   </view>
 
   <!-- 主入口 -->
@@ -18,9 +18,9 @@
     <view class="title-sm">怎么用</view>
     <view class="steps">
       <view class="step"><text class="step-no">1</text><text>拍摄或选择一张菜品照片</text></view>
-      <view class="step"><text class="step-no">2</text><text>自动识别菜名与原食材</text></view>
-      <view class="step"><text class="step-no">3</text><text>匹配质构数据库，给出软硬与咀嚼难度</text></view>
-      <view class="step"><text class="step-no">4</text><text>匹配不准时，从下方备选里自己改一个</text></view>
+      <view class="step"><text class="step-no">2</text><text>在质构库里找到对应的那道菜</text></view>
+      <view class="step"><text class="step-no">3</text><text>列出这道菜每种原食材的软硬与咀嚼难度</text></view>
+      <view class="step"><text class="step-no">4</text><text>认错了？从下方备选里换一道菜</text></view>
     </view>
   </view>
 

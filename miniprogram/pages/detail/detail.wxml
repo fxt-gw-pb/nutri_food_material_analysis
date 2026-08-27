@@ -6,58 +6,58 @@
     <view wx:else class="meal-img thumb-placeholder">🍽️</view>
     <view class="meal-meta">
       <view class="muted">{{dateText}}</view>
-      <view class="sub"><text class="tag">{{mealTypeText}}</text> · 共 {{dishViews.length}} 道菜</view>
-      <view class="sub">整体 {{textureSummary}}</view>
+      <view class="sub"><text class="tag">{{mealTypeText}}</text> · 识别为 {{recognizedName}}</view>
+      <view class="sub" wx:if="{{cookingMethod}}">烹饪方式 {{cookingMethod}} · 可信度 {{confidenceText}}</view>
     </view>
   </view>
 
-  <view wx:for="{{dishViews}}" wx:key="dishName" wx:for-item="dish" class="card dish">
+  <view class="card dish">
     <view class="dish-head">
-      <view class="title-md">{{dish.dishName}}</view>
-      <view class="tag tag-neutral" wx:if="{{dish.cookingMethod}}">{{dish.cookingMethod}}</view>
+      <view class="title-md">{{matched ? matchedDish : '未匹配到菜品'}}</view>
+      <view class="tag match-tag">{{matchTypeText}}</view>
     </view>
-    <view class="conf-row">
-      <text class="tag match-tag">{{dish.matchTypeText}}</text>
-      <text class="muted">识别可信度 {{dish.confidenceText}}</text>
+    <view wx:if="{{edited}}" class="edited-row">
+      <text class="tag tag-edited">已手动改选</text>
     </view>
 
-    <view wx:for="{{dish.items}}" wx:key="queryName" wx:for-item="item" class="ing-block">
-      <view class="divider"></view>
-      <view class="ing-head">
-        <text class="ing-name">{{item.queryName}}</text>
-        <text wx:if="{{item.edited}}" class="tag tag-edited">已手动改选</text>
+    <block wx:if="{{matched}}">
+      <view class="summary-line">
+        <text class="summary-label muted">整体</text>
+        <text class="summary-value">{{summary}}</text>
       </view>
 
-      <block wx:if="{{item.matched}}">
-        <view class="matched-line">
-          <text class="matched-title">{{item.title}}</text>
-          <text class="muted matched-cooking">{{item.cookingText}}</text>
+      <view class="divider"></view>
+      <view class="ing-title muted">这道菜的实测数据（{{rows.length}} 项取样）</view>
+
+      <view wx:for="{{rows}}" wx:key="source" wx:for-item="row" class="row-block">
+        <view class="row-head">
+          <text class="ing-name">{{row.wholeDish ? '整菜取样' : row.ingredient}}</text>
+          <text class="muted">{{row.cookingText}}</text>
         </view>
 
         <view class="metric-main">
           <text class="metric-label">软硬</text>
           <view class="hardness-track">
-            <view class="hardness-bar" style="width: {{item.hardnessPercent}}%;"></view>
+            <view class="hardness-bar" style="width: {{row.hardnessPercent}}%;"></view>
           </view>
-          <text class="metric-value">{{item.hardnessText}}</text>
+          <text class="metric-value">{{row.hardnessText}}</text>
         </view>
 
         <view class="metric-row">
-          <text class="metric-pill">嚼起来 {{item.chewinessText}}</text>
-          <text class="metric-pill">{{item.adhesivenessText}}</text>
+          <text class="metric-pill">嚼起来 {{row.chewinessText}}</text>
+          <text class="metric-pill">{{row.adhesivenessText}}</text>
         </view>
 
-        <!-- 九项完整指标 -->
         <view class="metric-table">
-          <view wx:for="{{item.metrics}}" wx:key="label" wx:for-item="m" class="metric-line">
+          <view wx:for="{{row.metrics}}" wx:key="label" wx:for-item="m" class="metric-line">
             <text class="metric-name muted">{{m.label}}</text>
             <text class="metric-num">{{m.value}}<text class="metric-unit muted"> {{m.unit}}</text></text>
           </view>
         </view>
-        <view class="muted source-line">数据出处：{{item.source}}</view>
-      </block>
-      <view wx:else class="unmatched">未匹配到质构数据</view>
-    </view>
+        <view class="muted source-line">数据出处：{{row.source}}</view>
+      </view>
+    </block>
+    <view wx:else class="unmatched">未匹配到质构数据</view>
   </view>
 
   <view class="disclaimer">

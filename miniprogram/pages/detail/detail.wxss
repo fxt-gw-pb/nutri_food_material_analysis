@@ -1,20 +1,5 @@
 @import "../result/result.wxss";
 
-.metric-table {
-  margin-top: 20rpx;
-  background: #fafcfb;
-  border-radius: 12rpx;
-  padding: 8rpx 20rpx;
-}
-.metric-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 10rpx 0;
-}
-.metric-name { font-size: 26rpx; }
-.metric-num { font-size: 26rpx; color: var(--sub); }
-.metric-unit { font-size: 22rpx; }
 .source-line {
   margin-top: 12rpx;
   line-height: 1.5;

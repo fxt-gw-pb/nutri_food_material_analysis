@@ -9,22 +9,15 @@
 // 伪造「视觉模型识别出的菜名与食材」。
 // ============================================================================
 
-import {
-  MealAnalysis,
-  AnalysisStatus,
-  TextureSelection,
-  MealHistoryItem,
-  MealType,
-  Dish,
-} from '../types/index';
+import { MealAnalysis, AnalysisStatus, MealHistoryItem, MealType, Dish } from '../types/index';
 import { CreateMealAnalysisParams } from './mealService.api';
-import { MOCK_DISH_SETS } from '../mock/dishes';
+import { MOCK_DISHES } from '../mock/dishes';
 import { buildSeedHistory } from '../mock/history';
-import { resolveMeal, summarizeTexture } from '../utils/texture';
+import { resolveMeal } from '../utils/texture';
 import { safeGet, safeSet } from '../utils/storage';
 
-const STORAGE_KEY = 'meal_records_v2';
-const SEEDED_KEY = 'meal_seeded_v2';
+const STORAGE_KEY = 'meal_records_v3';
+const SEEDED_KEY = 'meal_seeded_v3';
 /** 模拟识别总时长（毫秒），用于推进状态机 */
 const MOCK_ANALYZE_DURATION = 3000;
 
@@ -70,10 +63,10 @@ function genId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 }
 
-function pickMockDishes(): Dish[] {
-  const idx = loadRecords().length % MOCK_DISH_SETS.length;
+function pickMockDish(): Dish {
+  const idx = loadRecords().length % MOCK_DISHES.length;
   // 深拷贝，避免多条记录共享同一引用。
-  return JSON.parse(JSON.stringify(MOCK_DISH_SETS[idx])) as Dish[];
+  return JSON.parse(JSON.stringify(MOCK_DISHES[idx])) as Dish;
 }
 
 function mapProgressToStatus(ratio: number): AnalysisStatus {
@@ -101,8 +94,7 @@ export function createMealAnalysis(
     status: 'pending',
     modelName: 'qwen-vl-mock',
     promptVersion: 'mock-v0',
-    dishes: pickMockDishes(),
-    selections: [],
+    dish: pickMockDish(),
     createdAt: now,
     updatedAt: now,
     mockStartedAt: now,
@@ -140,15 +132,12 @@ export function getMealAnalysisResult(analysisId: string): Promise<MealAnalysis>
   return Promise.resolve(rec);
 }
 
-export function saveTextureSelections(
-  analysisId: string,
-  selections: TextureSelection[],
-): Promise<void> {
+export function saveSelectedDish(analysisId: string, selectedDish: string): Promise<void> {
   const rec = findRecord(analysisId);
   if (!rec) {
     return Promise.reject(new Error('analysis not found'));
   }
-  rec.selections = selections;
+  rec.selectedDish = selectedDish;
   rec.updatedAt = Date.now();
   upsertRecord(rec);
   return Promise.resolve();
@@ -180,13 +169,14 @@ export function deleteMealRecord(analysisId: string): Promise<void> {
 }
 
 function toHistoryItem(rec: MealAnalysis): MealHistoryItem {
+  const resolved = resolveMeal(rec.dish, rec.selectedDish);
   return {
     analysisId: rec.analysisId,
     date: rec.createdAt,
     mealType: rec.mealType,
     imageUrl: rec.imageUrl,
-    dishSummary: rec.dishes.map((d) => d.dishName).join('、'),
-    dishCount: rec.dishes.length,
-    textureSummary: summarizeTexture(resolveMeal(rec.dishes, rec.selections)),
+    dishName: resolved.recognizedName,
+    matchedDish: resolved.matchedDish,
+    textureSummary: resolved.summary,
   };
 }

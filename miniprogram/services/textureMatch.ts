@@ -1,29 +1,27 @@
 // ============================================================================
 // 质构数据匹配引擎（纯本地，无网络、无模型调用）。
 //
-// 按需求文档的两步走：
-//   第一步  菜名匹配：拍照识别出的菜名若与数据库中的菜名几乎一致，直接用该菜的数据。
-//   第二步  食材匹配：菜名对不上时，把识别出的原食材 + 烹饪方式拿去库里找最像的一条，
-//           遵循「食材优先、烹饪方式其次」——先看食材像不像，再看烹饪方式合不合。
-// 另外：同一道菜有多个烹饪时长版本时，优先取时间较久的那条（需求第 3 点）。
+// 匹配的单位是「一道菜」：一次识别只出一道菜，给出它在质构库里的源数据。
+// 识别出的原食材不单独展示，只用来在库里找最像的那道菜。
 //
-// 每个结果都带一组备选（alternatives），结果页展示在下方供老人自行改选。
+// 按需求文档的两步走：
+//   第一步  菜名匹配：识别出的菜名若与库中菜名几乎一致，直接用该菜的数据。
+//   第二步  食材匹配：菜名对不上时，拿识别出的原食材 + 烹饪方式去库里找最像的一道菜，
+//           遵循「食材优先、烹饪方式其次」——先看食材像不像，再看烹饪方式合不合。
+// 另外：同一道菜的同一种食材有多个烹饪时长时，取时间较久的那条（需求第 3 点）。
+//
+// 结果始终附一组备选菜（candidates），结果页展示在下方供老人自行改选。
 // ============================================================================
 
-import {
-  TEXTURE_RECORDS,
-  TextureRecord,
-  recordsOfDish,
-  ALL_DISH_NAMES,
-} from '../data/textureDb';
+import { TEXTURE_RECORDS, TextureRecord, ALL_DISH_NAMES, recordsOfDish } from '../data/textureDb';
 import { similarity, normalize } from '../utils/similarity';
 
 /** 菜名判定为「几乎一致」的相似度门槛 */
 const DISH_SAME_THRESHOLD = 0.82;
 /** 食材匹配可接受的最低总分，低于此值视为没匹配上（但仍给备选） */
-const INGREDIENT_MIN_SCORE = 0.34;
-/** 每条结果附带的备选数量 */
-const ALTERNATIVE_COUNT = 6;
+const MIN_SCORE = 0.34;
+/** 备选菜数量 */
+const CANDIDATE_COUNT = 8;
 
 /** 烹饪方式族群：同族视为「比较接近」，给一半的方式分 */
 const METHOD_FAMILIES: string[][] = [
@@ -45,11 +43,11 @@ function methodFamily(method: string): number {
   return -1;
 }
 
-/** 烹饪方式接近程度：完全一致 1，同族 0.5，都没写 0.3，其余 0 */
+/** 烹饪方式接近程度：完全一致 1，同族 0.5，有一方没标注 0.3，其余 0 */
 export function methodScore(a: string, b: string): number {
   const na = normalize(a);
   const nb = normalize(b);
-  if (!na || !nb) return 0.3; // 有一方没标烹饪方式：不加分也不重罚
+  if (!na || !nb) return 0.3;
   if (na === nb) return 1;
   const fa = methodFamily(na);
   const fb = methodFamily(nb);
@@ -58,89 +56,40 @@ export function methodScore(a: string, b: string): number {
 }
 
 // ----------------------------------------------------------------------------
-// 对外类型
+// 时长与展示文案
 // ----------------------------------------------------------------------------
 
-/** 视觉模型识别出的一道菜（匹配的输入） */
-export interface RecognizedDish {
-  dishName: string;
-  cookingMethod: string;
-  /** 识别出的原食材，如 [{name:'虾仁',cookingMethod:'煮'}] */
-  ingredients: { name: string; cookingMethod?: string }[];
-}
-
-/** 一条候选匹配 */
-export interface MatchCandidate {
-  recordId: string;
-  /** 展示用标题，如「大煮干丝 · 豆腐丝」 */
-  title: string;
-  dish: string;
-  ingredient: string;
-  method: string;
-  minutes: number;
-  category: string;
-  /** 0–100 的匹配度，供页面展示 */
-  scorePercent: number;
-  /** 一句话说明为什么匹配到它 */
-  reason: string;
-}
-
-export type MatchType = 'dish' | 'ingredient' | 'none';
-
-/** 识别出的一个食材（或一道菜）的匹配结果 */
-export interface MatchedItem {
-  /** 识别侧的名字（食材名，菜名匹配时是该菜的原食材名） */
-  queryName: string;
-  matchType: MatchType;
-  /** 选中的那条（none 时为空串） */
-  selectedRecordId: string;
-  candidates: MatchCandidate[];
-}
-
-/** 一道菜的完整匹配结果 */
-export interface MatchedDish {
-  dishName: string;
-  cookingMethod: string;
-  matchType: MatchType;
-  /** 命中的数据库菜名（菜名匹配时有值） */
-  matchedDishName: string;
-  items: MatchedItem[];
-}
-
-// ----------------------------------------------------------------------------
-// 内部工具
-// ----------------------------------------------------------------------------
-
-function minutesText(minutes: number): string {
+export function minutesText(minutes: number): string {
   if (!minutes) return '';
   if (minutes >= 60 && minutes % 60 === 0) return `${minutes / 60}小时`;
   return `${minutes % 1 === 0 ? minutes : minutes.toFixed(1)}分钟`;
 }
 
-/** 候选的展示描述：烹饪方式 + 时长 */
-export function candidateCookingText(method: string, minutes: number): string {
+/** 「煮 15分钟」这样的一行描述 */
+export function cookingText(method: string, minutes: number): string {
   const t = minutesText(minutes);
   if (method && t) return `${method} ${t}`;
   return method || t || '未标注烹饪方式';
 }
 
-function toCandidate(rec: TextureRecord, score: number, reason: string): MatchCandidate {
-  return {
-    recordId: rec.id,
-    title: rec.dish === rec.ingredient ? rec.dish : `${rec.dish} · ${rec.ingredient}`,
-    dish: rec.dish,
-    ingredient: rec.ingredient,
-    method: rec.method,
-    minutes: rec.minutes,
-    category: rec.category,
-    scorePercent: Math.round(Math.max(0, Math.min(1, score)) * 100),
-    reason,
-  };
+// ----------------------------------------------------------------------------
+// 按菜聚合
+// ----------------------------------------------------------------------------
+
+/** 库中一道菜的聚合视图 */
+export interface DishEntry {
+  dish: string;
+  category: string;
+  /** 展示用记录：同一种原食材只保留烹饪时间最久的那条（需求第 3 点） */
+  records: TextureRecord[];
+  /** 该菜的全部原始记录 */
+  allRecords: TextureRecord[];
 }
 
 /**
- * 需求第 3 点：同一道菜、同一种食材有多个烹饪时长版本时，优先保留时间较久的一条。
- * 返回按「食材」去重后的记录（每种食材只留时间最久的那条）。
+ * 需求第 3 点：同一道菜、同一种原食材有多个烹饪时长版本时，只保留时间较久的一条。
+ * 注意不能按「整道菜」统一挑时长——像土豆炖牛肉里土豆测的是 3/6 分钟、
+ * 牛肉测的是 30/50 分钟，必须按食材各自取最久的。
  */
 function preferLongerCooking(records: TextureRecord[]): TextureRecord[] {
   const best = new Map<string, TextureRecord>();
@@ -154,12 +103,78 @@ function preferLongerCooking(records: TextureRecord[]): TextureRecord[] {
   return Array.from(best.values());
 }
 
+const ENTRIES = new Map<string, DishEntry>();
+ALL_DISH_NAMES.forEach((dish) => {
+  const all = recordsOfDish(dish);
+  ENTRIES.set(dish, {
+    dish,
+    category: all[0] ? all[0].category : '',
+    records: preferLongerCooking(all),
+    allRecords: all,
+  });
+});
+
+export function getDishEntry(dish: string): DishEntry | undefined {
+  return ENTRIES.get(dish);
+}
+
+// ----------------------------------------------------------------------------
+// 对外类型
+// ----------------------------------------------------------------------------
+
+/** 视觉模型识别出的那道菜（匹配的输入） */
+export interface RecognizedDish {
+  dishName: string;
+  cookingMethod: string;
+  /** 识别出的原食材，只用于回库里找最像的菜，不单独展示 */
+  ingredients: { name: string; cookingMethod?: string }[];
+}
+
+/** 一道备选菜 */
+export interface DishCandidate {
+  dish: string;
+  category: string;
+  /** 该菜测了哪些原食材，如「火腿丝、豆腐丝」 */
+  ingredientText: string;
+  /** 烹饪方式与时长摘要，如「煮 15分钟」 */
+  cookingText: string;
+  scorePercent: number;
+  reason: string;
+}
+
+export type MatchType = 'dish' | 'ingredient' | 'none';
+
+/** 一次识别的匹配结果 */
+export interface MealMatch {
+  matchType: MatchType;
+  /** 自动匹配到的库中菜名；none 时为空串 */
+  matchedDish: string;
+  candidates: DishCandidate[];
+}
+
+function toCandidate(entry: DishEntry, score: number, reason: string): DishCandidate {
+  const ings = entry.records.map((r) => r.ingredient);
+  const methods: string[] = [];
+  entry.records.forEach((r) => {
+    const t = cookingText(r.method, r.minutes);
+    if (methods.indexOf(t) < 0) methods.push(t);
+  });
+  return {
+    dish: entry.dish,
+    category: entry.category,
+    ingredientText:
+      ings.length === 1 && ings[0] === entry.dish ? '整菜取样' : ings.join('、'),
+    cookingText: methods.join(' / '),
+    scorePercent: Math.round(Math.max(0, Math.min(1, score)) * 100),
+    reason,
+  };
+}
+
 // ----------------------------------------------------------------------------
 // 第一步：菜名匹配
 // ----------------------------------------------------------------------------
 
-/** 在数据库菜名里找与 dishName 最像的一个；不够像则返回空 */
-function findSameDish(dishName: string): string {
+function findSameDish(dishName: string): { dish: string; score: number } {
   let bestName = '';
   let bestScore = 0;
   ALL_DISH_NAMES.forEach((name) => {
@@ -169,172 +184,145 @@ function findSameDish(dishName: string): string {
       bestName = name;
     }
   });
-  return bestScore >= DISH_SAME_THRESHOLD ? bestName : '';
-}
-
-/** 把命中的菜拆成「每种原食材一条」的结果 */
-function buildDishMatch(query: RecognizedDish, dbDishName: string): MatchedDish {
-  const all = recordsOfDish(dbDishName);
-  const picked = preferLongerCooking(all);
-  const items: MatchedItem[] = picked.map((rec) => {
-    // 备选 = 同一道菜的其它版本（不同时长 / 不同食材）+ 食材层面的相似项
-    const sameDishOthers = all
-      .filter((r) => r.id !== rec.id)
-      .sort((a, b) => b.minutes - a.minutes)
-      .map((r) =>
-        toCandidate(
-          r,
-          0.9,
-          r.ingredient === rec.ingredient
-            ? `同一道菜的另一个烹饪时长（${candidateCookingText(r.method, r.minutes)}）`
-            : `同一道菜的其它食材（${r.ingredient}）`,
-        ),
-      );
-    const similarOthers = rankByIngredient(rec.ingredient, rec.method, dbDishName)
-      .slice(0, ALTERNATIVE_COUNT)
-      .map((c) => c.candidate);
-    return {
-      queryName: rec.ingredient,
-      matchType: 'dish' as MatchType,
-      selectedRecordId: rec.id,
-      candidates: [
-        toCandidate(rec, 1, `菜名与「${dbDishName}」一致，直接取库中该菜数据`),
-        ...sameDishOthers,
-        ...similarOthers,
-      ],
-    };
-  });
-  return {
-    dishName: query.dishName,
-    cookingMethod: query.cookingMethod,
-    matchType: 'dish',
-    matchedDishName: dbDishName,
-    items,
-  };
+  return { dish: bestScore >= DISH_SAME_THRESHOLD ? bestName : '', score: bestScore };
 }
 
 // ----------------------------------------------------------------------------
-// 第二步：食材匹配（食材优先、烹饪方式其次）
+// 第二步：食材匹配（食材优先、烹饪方式其次），仍然以「整道菜」为单位打分
 // ----------------------------------------------------------------------------
 
 const W_INGREDIENT = 0.78;
 const W_METHOD = 0.18;
 const W_DISH = 0.04;
+/** 一道菜命中多个识别食材时的加成（每多命中一个） */
+const MULTI_HIT_BONUS = 0.06;
+const MULTI_HIT_CAP = 0.12;
 
-interface Scored {
-  candidate: MatchCandidate;
+interface ScoredDish {
+  candidate: DishCandidate;
   score: number;
-  minutes: number;
+  /** 该菜里最久的烹饪时长，用于同分时排序 */
+  maxMinutes: number;
 }
 
-/**
- * 用「食材名 + 烹饪方式」给全库打分并排序。
- * excludeDish 用于在菜名已命中时，把同一道菜排除出「相似备选」，避免重复。
- */
-function rankByIngredient(
-  ingredientName: string,
-  method: string,
-  excludeDish = '',
-  dishName = '',
-): Scored[] {
-  const scored: Scored[] = [];
-  TEXTURE_RECORDS.forEach((rec) => {
-    if (excludeDish && rec.dish === excludeDish) return;
-    const ingSim = similarity(ingredientName, rec.ingredient);
-    if (ingSim < 0.15) return; // 食材完全不沾边，直接跳过
-    const mScore = methodScore(method, rec.method);
-    const dSim = dishName ? similarity(dishName, rec.dish) : 0;
-    const score = W_INGREDIENT * ingSim + W_METHOD * mScore + W_DISH * dSim;
-    let reason: string;
-    if (!rec.method || !normalize(method)) {
-      reason = `食材「${rec.ingredient}」相近，库中未标注烹饪方式`;
-    } else if (mScore >= 1) {
-      reason = `食材「${rec.ingredient}」相近，烹饪方式同为${rec.method}`;
-    } else if (mScore >= 0.5) {
-      reason = `食材「${rec.ingredient}」相近，烹饪方式接近（${rec.method}）`;
-    } else {
-      reason = `食材「${rec.ingredient}」相近，烹饪方式不同（${rec.method}）`;
-    }
-    scored.push({ candidate: toCandidate(rec, score, reason), score, minutes: rec.minutes });
-  });
-  // 分数降序；完全同分（同一道菜、同一食材的不同烹饪时长）时，
-  // 按需求第 3 点取烹饪时间更久的那条。
-  scored.sort((a, b) => {
-    if (Math.abs(a.score - b.score) < 1e-6) return b.minutes - a.minutes;
-    return b.score - a.score;
-  });
-  return scored;
-}
-
-function buildIngredientMatch(query: RecognizedDish): MatchedDish {
-  // 模型没给出食材时，退而用菜名本身当食材去找
+function rankDishes(query: RecognizedDish): ScoredDish[] {
   const ingredients =
     query.ingredients && query.ingredients.length
       ? query.ingredients
       : [{ name: query.dishName, cookingMethod: query.cookingMethod }];
 
-  const items: MatchedItem[] = ingredients.map((ing) => {
-    const method = ing.cookingMethod || query.cookingMethod;
-    const ranked = rankByIngredient(ing.name, method, '', query.dishName).slice(
-      0,
-      ALTERNATIVE_COUNT + 1,
-    );
-    const top = ranked[0];
-    const matched = !!top && top.score >= INGREDIENT_MIN_SCORE;
-    return {
-      queryName: ing.name,
-      matchType: (matched ? 'ingredient' : 'none') as MatchType,
-      selectedRecordId: matched ? top.candidate.recordId : '',
-      candidates: ranked.map((s) => s.candidate),
-    };
+  // 先把「识别食材 × 库中记录」的分数按菜归拢
+  interface Acc {
+    best: number;
+    bestReason: string;
+    hits: Record<string, boolean>;
+  }
+  const acc = new Map<string, Acc>();
+
+  TEXTURE_RECORDS.forEach((rec) => {
+    const dishSim = similarity(query.dishName, rec.dish);
+    ingredients.forEach((ing) => {
+      const ingSim = similarity(ing.name, rec.ingredient);
+      if (ingSim < 0.15) return;
+      const method = ing.cookingMethod || query.cookingMethod;
+      const mScore = methodScore(method, rec.method);
+      const score = W_INGREDIENT * ingSim + W_METHOD * mScore + W_DISH * dishSim;
+      let reason: string;
+      if (!rec.method || !normalize(method)) {
+        reason = `识别到的「${ing.name}」与库中「${rec.ingredient}」相近，库中未标注烹饪方式`;
+      } else if (mScore >= 1) {
+        reason = `识别到的「${ing.name}」与库中「${rec.ingredient}」相近，烹饪方式同为${rec.method}`;
+      } else if (mScore >= 0.5) {
+        reason = `识别到的「${ing.name}」与库中「${rec.ingredient}」相近，烹饪方式接近（${rec.method}）`;
+      } else {
+        reason = `识别到的「${ing.name}」与库中「${rec.ingredient}」相近，烹饪方式不同（${rec.method}）`;
+      }
+      const cur = acc.get(rec.dish) || { best: 0, bestReason: '', hits: {} };
+      if (score > cur.best) {
+        cur.best = score;
+        cur.bestReason = reason;
+      }
+      if (ingSim >= 0.5) cur.hits[ing.name] = true;
+      acc.set(rec.dish, cur);
+    });
   });
 
-  return {
-    dishName: query.dishName,
-    cookingMethod: query.cookingMethod,
-    matchType: items.some((i) => i.matchType === 'ingredient') ? 'ingredient' : 'none',
-    matchedDishName: '',
-    items,
-  };
+  const out: ScoredDish[] = [];
+  acc.forEach((a, dish) => {
+    const entry = ENTRIES.get(dish);
+    if (!entry) return;
+    const extraHits = Math.max(0, Object.keys(a.hits).length - 1);
+    const bonus = Math.min(MULTI_HIT_CAP, extraHits * MULTI_HIT_BONUS);
+    const score = Math.min(1, a.best + bonus);
+    const reason =
+      extraHits > 0 ? `${a.bestReason}；另有 ${extraHits} 种识别到的食材也对得上` : a.bestReason;
+    out.push({
+      candidate: toCandidate(entry, score, reason),
+      score,
+      maxMinutes: entry.records.reduce((m, r) => Math.max(m, r.minutes), 0),
+    });
+  });
+
+  // 分数降序；完全同分时按需求第 3 点取烹饪时间更久的那道
+  out.sort((a, b) =>
+    Math.abs(a.score - b.score) < 1e-6 ? b.maxMinutes - a.maxMinutes : b.score - a.score,
+  );
+  return out;
 }
 
 // ----------------------------------------------------------------------------
 // 对外入口
 // ----------------------------------------------------------------------------
 
-/** 给一道识别出的菜找质构数据：先菜名、后食材 */
-export function matchDish(query: RecognizedDish): MatchedDish {
-  const sameDish = findSameDish(query.dishName);
-  if (sameDish) {
-    return buildDishMatch(query, sameDish);
+/** 给识别出的这道菜找库中对应的菜：先菜名、后食材 */
+export function matchMeal(query: RecognizedDish): MealMatch {
+  const same = findSameDish(query.dishName);
+  const ranked = rankDishes(query);
+
+  if (same.dish) {
+    const entry = ENTRIES.get(same.dish);
+    const head = entry
+      ? [toCandidate(entry, 1, `菜名与库中「${same.dish}」一致，直接取该菜数据`)]
+      : [];
+    // 备选里排掉已命中的那道，避免重复出现
+    const rest = ranked
+      .filter((s) => s.candidate.dish !== same.dish)
+      .slice(0, CANDIDATE_COUNT)
+      .map((s) => s.candidate);
+    return { matchType: 'dish', matchedDish: same.dish, candidates: [...head, ...rest] };
   }
-  return buildIngredientMatch(query);
+
+  const top = ranked[0];
+  const matched = !!top && top.score >= MIN_SCORE;
+  return {
+    matchType: matched ? 'ingredient' : 'none',
+    matchedDish: matched ? top.candidate.dish : '',
+    candidates: ranked.slice(0, CANDIDATE_COUNT).map((s) => s.candidate),
+  };
 }
 
-export function matchDishes(dishes: RecognizedDish[]): MatchedDish[] {
-  return dishes.map(matchDish);
-}
-
-/** 结果页「手动搜索」用：按关键词在全库里找菜名 / 食材 */
-export function searchCandidates(keyword: string, limit = 20): MatchCandidate[] {
+/** 结果页「手动搜索」用：按关键词在库里找菜 */
+export function searchDishes(keyword: string, limit = 20): DishCandidate[] {
   const kw = normalize(keyword);
   if (!kw) return [];
-  const scored: Scored[] = [];
-  TEXTURE_RECORDS.forEach((rec) => {
-    const s = Math.max(
-      similarity(kw, rec.dish),
-      similarity(kw, rec.ingredient),
-      normalize(rec.dish).includes(kw) || normalize(rec.ingredient).includes(kw) ? 0.9 : 0,
-    );
-    if (s < 0.3) return;
-    scored.push({
-      candidate: toCandidate(rec, s, `搜索「${keyword}」匹配到`),
-      score: s,
-      minutes: rec.minutes,
+  const out: ScoredDish[] = [];
+  ENTRIES.forEach((entry) => {
+    let best = similarity(kw, entry.dish);
+    if (normalize(entry.dish).includes(kw)) best = Math.max(best, 0.9);
+    entry.records.forEach((r) => {
+      let s = similarity(kw, r.ingredient) * 0.9;
+      if (normalize(r.ingredient).includes(kw)) s = Math.max(s, 0.8);
+      best = Math.max(best, s);
+    });
+    if (best < 0.3) return;
+    out.push({
+      candidate: toCandidate(entry, best, `搜索「${keyword}」匹配到`),
+      score: best,
+      maxMinutes: entry.records.reduce((m, r) => Math.max(m, r.minutes), 0),
     });
   });
-  scored.sort((a, b) =>
-    Math.abs(a.score - b.score) < 1e-6 ? b.minutes - a.minutes : b.score - a.score,
+  out.sort((a, b) =>
+    Math.abs(a.score - b.score) < 1e-6 ? b.maxMinutes - a.maxMinutes : b.score - a.score,
   );
-  return scored.slice(0, limit).map((s) => s.candidate);
+  return out.slice(0, limit).map((s) => s.candidate);
 }

@@ -33,33 +33,21 @@ export interface RecognizedIngredient {
   cookingMethod?: string;
 }
 
-/** 视觉模型识别出的一道菜（不含任何重量信息） */
+/** 视觉模型识别出的那道菜（一次识别只出一道菜，不含任何重量信息） */
 export interface Dish {
-  dishId: string;
   dishName: string;
   /** 整道菜的烹饪方式，如 炒 / 蒸 / 红烧 */
   cookingMethod: string;
   /** 菜品识别可信度 */
   recognitionConfidence: ConfidenceLevel;
-  /** 识别出的原食材列表 */
+  /** 识别出的原食材，只用于回质构库里找最像的那道菜，不单独展示 */
   ingredients: RecognizedIngredient[];
-}
-
-/**
- * 用户对某道菜的质构匹配选择。
- * 匹配本身由本地质构数据库实时算出（services/textureMatch.ts），
- * 这里只记录「用户最终选中了哪条数据」，键为识别侧的食材名。
- */
-export interface TextureSelection {
-  dishId: string;
-  /** queryName（识别出的食材名） → 质构库记录 id */
-  picks: { queryName: string; recordId: string }[];
 }
 
 /**
  * 一次完整的餐盘分析记录。
  * 对应 CloudBase 云数据库集合 meal_records 的一条文档。
- * dishes 在数据库中嵌套于 result 字段内（见 docs/cloudbase-integration.md）。
+ * dish 在数据库中嵌套于 result 字段内（见 docs/cloudbase-integration.md）。
  */
 export interface MealAnalysis {
   analysisId: string;
@@ -74,9 +62,10 @@ export interface MealAnalysis {
   modelName?: string;
   /** prompt 版本 */
   promptVersion?: string;
-  dishes: Dish[];
-  /** 用户在结果页改选后的匹配结果；为空表示全部采用自动匹配 */
-  selections: TextureSelection[];
+  /** 识别出的那道菜；识别不到食物时为 null */
+  dish: Dish | null;
+  /** 用户在结果页手动改选的库中菜名；为空表示采用自动匹配 */
+  selectedDish?: string;
   createdAt: number;
   updatedAt: number;
   /** 仅 mock 阶段使用：用于模拟分析进度推进的起始时间戳 */
@@ -91,9 +80,10 @@ export interface MealHistoryItem {
   /** 餐次 */
   mealType?: MealType;
   imageUrl: string;
-  /** 菜品摘要，如 "大煮干丝、清蒸石斑鱼" */
-  dishSummary: string;
-  dishCount: number;
+  /** 识别出的菜名 */
+  dishName: string;
+  /** 匹配到的库中菜名；没匹配上时为空串 */
+  matchedDish: string;
   /** 质构摘要，如 "偏软 · 好嚼" */
   textureSummary: string;
 }

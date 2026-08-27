@@ -14,7 +14,7 @@
 CloudBase
   ├── 云存储   meal-images/      原始菜品照片
   ├── 云函数   analyzeMeal       调用千问视觉模型识别菜名/食材 + 写库
-  └── 云数据库 meal_records      识别记录（嵌套 dishes / ingredients）
+  └── 云数据库 meal_records      识别记录（嵌套 result.dish 与其 ingredients）
                 model_logs       模型调用日志（可选）
 
 质构数据的匹配不在云端：数据库内置在小程序包里，全部本地计算（见 ai-pipeline.md）。
@@ -27,12 +27,12 @@ CloudBase
 - 目录前缀建议：`meal-images/`（见 `services/config.example.ts` 的 `uploadDir`）。
 
 ### 云函数 `analyzeMeal`
-- 职责：调用千问视觉模型识别菜名 / 烹饪方式 / 原食材，保存结构化结果（不涉及重量）。
+- 职责：调用千问视觉模型识别**一道**菜的菜名 / 烹饪方式 / 原食材，保存结构化结果（不涉及重量）。
 - 详见 [`ai-pipeline.md`](./ai-pipeline.md)。
 - **千问 API Key 只能配置在云函数的环境变量中，前端不得包含。**
 
 ### 云数据库
-- `meal_records`：按「单条餐盘分析记录」存储，结构内嵌 `dishes` 与 `ingredients`，避免 MVP 阶段拆分过多集合。
+- `meal_records`：按「单次识别记录」存储，结构内嵌 `dish` 与其 `ingredients`，避免拆分过多集合。
 - `model_logs`（可选）：记录每次模型调用的输入摘要、耗时、token、版本，便于排查与迭代。
 
 ## 3. `meal_records` 文档结构
@@ -50,15 +50,16 @@ CloudBase
   modelName: string,        // 千问模型名
   promptVersion: string,    // prompt 版本
   result: {                 // 识别结果，嵌套存储
-    dishes: Dish[],         // 菜名 / 烹饪方式 / 可信度 / ingredients（无重量）
+    dish: Dish | null,      // 一道菜：菜名 / 烹饪方式 / 可信度 / ingredients（无重量）
   },
-  selections: TextureSelection[], // 用户在结果页手动改选的质构记录 id
+  selectedDish: string,     // 用户在结果页手动改选的库中菜名，空串=采用自动匹配
   createdAt: number,
   updatedAt: number,
 }
 ```
 
-> 说明：前端 `MealAnalysis` 为了使用方便把 `dishes` 放在顶层；落库时建议收进 `result.dishes`。
+> 说明：前端 `MealAnalysis` 为了使用方便把 `dish` 放在顶层；落库时收进 `result.dish`。
+> 早期版本存的是 `result.dishes` 数组，`mealService.cloud.ts` 读取时会兼容取第一道。
 > `toHistoryItem` / 各页面读取处只需相应调整一处映射即可。
 > 前端类型中的 `mockStartedAt` 仅用于本地模拟进度，接入后删除。
 
@@ -79,7 +80,7 @@ service 层已拆分为契约 + 两套实现，由 `config.ts` 的 `useCloud` �
 | `createMealAnalysis` | 写本地 Storage，立即生成结果 | `wx.cloud.callFunction({ name: 'analyzeMeal', data })`，返回 `analysisId` |
 | `getMealAnalysisStatus` | 按时间推进状态机 | 查询 `meal_records.status` 或 `db.collection().watch()` 实时监听 |
 | `getMealAnalysisResult` | 读本地 Storage | 查询 `meal_records` 文档 |
-| `saveTextureSelections` | 写本地 Storage | `db.collection('meal_records').doc(id).update({ selections })` |
+| `saveSelectedDish` | 写本地 Storage | `db.collection('meal_records').doc(id).update({ selectedDish })` |
 | `getMealHistory` | 读本地 Storage | `db.collection('meal_records').where({ _openid }).orderBy('createdAt','desc').get()` |
 | `deleteMealRecord` | 删本地 Storage | 删除文档 + `wx.cloud.deleteFile` 清理云存储图片 |
 

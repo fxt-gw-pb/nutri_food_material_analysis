@@ -10,15 +10,8 @@
 // 详见 docs/cloudbase-integration.md。
 // ============================================================================
 
-import {
-  MealAnalysis,
-  AnalysisStatus,
-  TextureSelection,
-  MealHistoryItem,
-  MealType,
-  Dish,
-} from '../types/index';
-import { resolveMeal, summarizeTexture } from '../utils/texture';
+import { MealAnalysis, AnalysisStatus, MealHistoryItem, MealType, Dish } from '../types/index';
+import { resolveMeal } from '../utils/texture';
 import { CONFIG } from './config';
 import { CreateMealAnalysisParams } from './mealService.api';
 
@@ -47,13 +40,20 @@ interface AnyDoc {
   mealType?: MealType;
   modelName?: string;
   promptVersion?: string;
-  result?: { dishes: Dish[] };
-  selections?: TextureSelection[];
+  // 旧版文档存的是 result.dishes 数组，读取时兼容取第一道。
+  result?: { dish?: Dish | null; dishes?: Dish[] };
+  selectedDish?: string;
   createdAt: number;
   updatedAt: number;
 }
 
-/** 云数据库文档 → 前端 MealAnalysis（dishes 从 result.dishes 提到顶层） */
+function docDish(doc: AnyDoc): Dish | null {
+  if (doc.result?.dish) return doc.result.dish;
+  const legacy = doc.result?.dishes;
+  return legacy && legacy.length ? legacy[0] : null;
+}
+
+/** 云数据库文档 → 前端 MealAnalysis（dish 从 result.dish 提到顶层） */
 function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
   return {
     analysisId: doc._id,
@@ -63,24 +63,24 @@ function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
     mealType: doc.mealType,
     modelName: doc.modelName,
     promptVersion: doc.promptVersion,
-    dishes: doc.result?.dishes ?? [],
-    selections: doc.selections ?? [],
+    dish: docDish(doc),
+    selectedDish: doc.selectedDish,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
 }
 
 function docToHistoryItem(doc: AnyDoc): MealHistoryItem {
-  const dishes: Dish[] = doc.result?.dishes ?? [];
+  // 质构摘要在本地按同一套匹配规则现算，保证与详情页一致。
+  const resolved = resolveMeal(docDish(doc), doc.selectedDish);
   return {
     analysisId: doc._id,
     date: doc.createdAt,
     mealType: doc.mealType,
     imageUrl: doc.imageUrl,
-    dishSummary: dishes.map((d) => d.dishName).join('、'),
-    dishCount: dishes.length,
-    // 质构摘要在本地按同一套匹配规则现算，保证与详情页一致。
-    textureSummary: summarizeTexture(resolveMeal(dishes, doc.selections ?? [])),
+    dishName: resolved.recognizedName,
+    matchedDish: resolved.matchedDish,
+    textureSummary: resolved.summary,
   };
 }
 
@@ -147,14 +147,11 @@ export function getMealAnalysisResult(analysisId: string): Promise<MealAnalysis>
     .then((res) => docToMealAnalysis(res.data as AnyDoc));
 }
 
-export function saveTextureSelections(
-  analysisId: string,
-  selections: TextureSelection[],
-): Promise<void> {
+export function saveSelectedDish(analysisId: string, selectedDish: string): Promise<void> {
   return db()
     .collection(COLLECTION)
     .doc(analysisId)
-    .update({ data: { selections, updatedAt: Date.now() } })
+    .update({ data: { selectedDish, updatedAt: Date.now() } })
     .then(() => undefined);
 }
 

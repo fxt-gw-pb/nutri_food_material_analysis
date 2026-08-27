@@ -20,12 +20,12 @@
 
     <view class="record-body">
       <view class="record-top">
-        <text class="record-summary">{{item.dishSummary}}</text>
+        <text class="record-summary">{{item.dishName}}</text>
         <text class="muted">{{item.dateText}}</text>
       </view>
       <view class="record-stats">
         <text class="tag">{{item.mealTypeText}}</text>
-        <text class="sub">{{item.dishCount}} 道菜</text>
+        <text class="sub">{{item.matchedDish ? '匹配 ' + item.matchedDish : '未匹配到菜品'}}</text>
       </view>
       <view class="record-texture">整体 <text class="record-texture-value">{{item.textureSummary}}</text></view>
     </view>
