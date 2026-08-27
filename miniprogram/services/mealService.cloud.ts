@@ -26,9 +26,14 @@ const STATUS_PROGRESS: Record<AnalysisStatus, number> = {
   failed: 1,
 };
 
-// 延迟取 db，避免模块加载期（wx.cloud.init 之前）触发云能力。
-function db() {
-  return wx.cloud.database();
+// 延迟取 db，避免模块加载期（wx.cloud.init 之前）触发云能力；取到后缓存复用，
+// 不要每次查询都新建一个 database 实例。
+let dbRef: DB.Database | null = null;
+function db(): DB.Database {
+  if (!dbRef) {
+    dbRef = wx.cloud.database();
+  }
+  return dbRef;
 }
 
 /** meal_records 文档形状（落库结构见 docs/cloudbase-integration.md） */
@@ -168,6 +173,8 @@ export function getMealHistory(): Promise<MealHistoryItem[]> {
     .collection(COLLECTION)
     .where({ status: 'completed' })
     .orderBy('createdAt', 'desc')
+    // 每条记录都要在本地重跑一次质构匹配，不设上限会让历史页越用越卡。
+    .limit(30)
     .get()
     .then((res) => (res.data as AnyDoc[]).map(docToHistoryItem));
 }

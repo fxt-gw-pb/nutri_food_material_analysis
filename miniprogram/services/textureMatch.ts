@@ -13,8 +13,8 @@
 // 结果始终附一组备选菜（candidates），结果页展示在下方供老人自行改选。
 // ============================================================================
 
-import { TEXTURE_RECORDS, TextureRecord, ALL_DISH_NAMES, recordsOfDish } from '../data/textureDb';
-import { similarity, normalize } from '../utils/similarity';
+import { TextureRecord, allDishNames, allRecords, recordsOfDish } from '../data/textureDb';
+import { Prepared, normalize, prepare, similarityPrepared } from '../utils/similarity';
 
 /** 菜名判定为「几乎一致」的相似度门槛 */
 const DISH_SAME_THRESHOLD = 0.82;
@@ -22,6 +22,8 @@ const DISH_SAME_THRESHOLD = 0.82;
 const MIN_SCORE = 0.34;
 /** 备选菜数量 */
 const CANDIDATE_COUNT = 8;
+/** 参与打分的识别食材上限：模型偶尔会列出十几种配料，全部参与打分只会拖慢匹配 */
+const MAX_QUERY_INGREDIENTS = 6;
 
 /** 烹饪方式族群：同族视为「比较接近」，给一半的方式分 */
 const METHOD_FAMILIES: string[][] = [
@@ -84,6 +86,16 @@ export interface DishEntry {
   records: TextureRecord[];
   /** 该菜的全部原始记录 */
   allRecords: TextureRecord[];
+  /** 该菜里最久的烹饪时长，用于同分排序 */
+  maxMinutes: number;
+  /** 菜名的预处理形式（建索引时算一次，匹配时直接用） */
+  name: Prepared;
+}
+
+/** 打分时用的记录 + 预处理过的食材名 */
+interface IndexedRecord {
+  rec: TextureRecord;
+  ingredient: Prepared;
 }
 
 /**
@@ -103,19 +115,42 @@ function preferLongerCooking(records: TextureRecord[]): TextureRecord[] {
   return Array.from(best.values());
 }
 
-const ENTRIES = new Map<string, DishEntry>();
-ALL_DISH_NAMES.forEach((dish) => {
-  const all = recordsOfDish(dish);
-  ENTRIES.set(dish, {
-    dish,
-    category: all[0] ? all[0].category : '',
-    records: preferLongerCooking(all),
-    allRecords: all,
+// 索引同样**懒加载**：第一次匹配时才建，避免拖慢小程序启动。
+let index: {
+  entries: Record<string, DishEntry>;
+  names: string[];
+  records: IndexedRecord[];
+  /** 记录 id → 预处理过的食材名，搜索时直接查表 */
+  ingPrepared: Record<string, Prepared>;
+} | null = null;
+
+function ensureIndex() {
+  if (index) return index;
+  const entries: Record<string, DishEntry> = {};
+  const names = allDishNames();
+  names.forEach((dish) => {
+    const all = recordsOfDish(dish);
+    const records = preferLongerCooking(all);
+    entries[dish] = {
+      dish,
+      category: all[0] ? all[0].category : '',
+      records,
+      allRecords: all,
+      maxMinutes: records.reduce((m, r) => Math.max(m, r.minutes), 0),
+      name: prepare(dish),
+    };
   });
-});
+  const records = allRecords().map((rec) => ({ rec, ingredient: prepare(rec.ingredient) }));
+  const ingPrepared: Record<string, Prepared> = {};
+  records.forEach((r) => {
+    ingPrepared[r.rec.id] = r.ingredient;
+  });
+  index = { entries, names, records, ingPrepared };
+  return index;
+}
 
 export function getDishEntry(dish: string): DishEntry | undefined {
-  return ENTRIES.get(dish);
+  return ensureIndex().entries[dish];
 }
 
 // ----------------------------------------------------------------------------
@@ -174,11 +209,12 @@ function toCandidate(entry: DishEntry, score: number, reason: string): DishCandi
 // 第一步：菜名匹配
 // ----------------------------------------------------------------------------
 
-function findSameDish(dishName: string): { dish: string; score: number } {
+function findSameDish(query: Prepared): { dish: string; score: number } {
+  const idx = ensureIndex();
   let bestName = '';
   let bestScore = 0;
-  ALL_DISH_NAMES.forEach((name) => {
-    const s = similarity(dishName, name);
+  idx.names.forEach((name) => {
+    const s = similarityPrepared(query, idx.entries[name].name);
     if (s > bestScore) {
       bestScore = s;
       bestName = name;
@@ -205,11 +241,17 @@ interface ScoredDish {
   maxMinutes: number;
 }
 
-function rankDishes(query: RecognizedDish): ScoredDish[] {
-  const ingredients =
+function rankDishes(query: RecognizedDish, queryName: Prepared): ScoredDish[] {
+  const idx = ensureIndex();
+  const ingredients = (
     query.ingredients && query.ingredients.length
-      ? query.ingredients
-      : [{ name: query.dishName, cookingMethod: query.cookingMethod }];
+      ? query.ingredients.slice(0, MAX_QUERY_INGREDIENTS)
+      : [{ name: query.dishName, cookingMethod: query.cookingMethod }]
+  ).map((ing) => ({
+    name: ing.name,
+    prepared: prepare(ing.name),
+    method: ing.cookingMethod || query.cookingMethod,
+  }));
 
   // 先把「识别食材 × 库中记录」的分数按菜归拢
   interface Acc {
@@ -217,14 +259,16 @@ function rankDishes(query: RecognizedDish): ScoredDish[] {
     bestReason: string;
     hits: Record<string, boolean>;
   }
-  const acc = new Map<string, Acc>();
+  const acc: Record<string, Acc> = {};
 
-  TEXTURE_RECORDS.forEach((rec) => {
-    const dishSim = similarity(query.dishName, rec.dish);
+  idx.records.forEach((item) => {
+    const rec = item.rec;
+    const entry = idx.entries[rec.dish];
+    const dishSim = entry ? similarityPrepared(queryName, entry.name) : 0;
     ingredients.forEach((ing) => {
-      const ingSim = similarity(ing.name, rec.ingredient);
+      const ingSim = similarityPrepared(ing.prepared, item.ingredient);
       if (ingSim < 0.15) return;
-      const method = ing.cookingMethod || query.cookingMethod;
+      const method = ing.method;
       const mScore = methodScore(method, rec.method);
       const score = W_INGREDIENT * ingSim + W_METHOD * mScore + W_DISH * dishSim;
       let reason: string;
@@ -237,30 +281,27 @@ function rankDishes(query: RecognizedDish): ScoredDish[] {
       } else {
         reason = `识别到的「${ing.name}」与库中「${rec.ingredient}」相近，烹饪方式不同（${rec.method}）`;
       }
-      const cur = acc.get(rec.dish) || { best: 0, bestReason: '', hits: {} };
+      const cur = acc[rec.dish] || { best: 0, bestReason: '', hits: {} };
       if (score > cur.best) {
         cur.best = score;
         cur.bestReason = reason;
       }
       if (ingSim >= 0.5) cur.hits[ing.name] = true;
-      acc.set(rec.dish, cur);
+      acc[rec.dish] = cur;
     });
   });
 
   const out: ScoredDish[] = [];
-  acc.forEach((a, dish) => {
-    const entry = ENTRIES.get(dish);
+  Object.keys(acc).forEach((dish) => {
+    const a = acc[dish];
+    const entry = idx.entries[dish];
     if (!entry) return;
     const extraHits = Math.max(0, Object.keys(a.hits).length - 1);
     const bonus = Math.min(MULTI_HIT_CAP, extraHits * MULTI_HIT_BONUS);
     const score = Math.min(1, a.best + bonus);
     const reason =
       extraHits > 0 ? `${a.bestReason}；另有 ${extraHits} 种识别到的食材也对得上` : a.bestReason;
-    out.push({
-      candidate: toCandidate(entry, score, reason),
-      score,
-      maxMinutes: entry.records.reduce((m, r) => Math.max(m, r.minutes), 0),
-    });
+    out.push({ candidate: toCandidate(entry, score, reason), score, maxMinutes: entry.maxMinutes });
   });
 
   // 分数降序；完全同分时按需求第 3 点取烹饪时间更久的那道
@@ -274,13 +315,42 @@ function rankDishes(query: RecognizedDish): ScoredDish[] {
 // 对外入口
 // ----------------------------------------------------------------------------
 
+// 同一条记录会被结果页、详情页、历史页反复解析，而输入完全相同 → 结果必然相同。
+// 缓存住，历史页 20 条记录就不用把全库扫 20 遍。
+const matchCache: Record<string, MealMatch> = {};
+let matchCacheSize = 0;
+const MATCH_CACHE_LIMIT = 60;
+
+function cacheKey(query: RecognizedDish): string {
+  const ings = (query.ingredients || [])
+    .map((i) => `${i.name}/${i.cookingMethod || ''}`)
+    .join(',');
+  return `${query.dishName}|${query.cookingMethod}|${ings}`;
+}
+
 /** 给识别出的这道菜找库中对应的菜：先菜名、后食材 */
 export function matchMeal(query: RecognizedDish): MealMatch {
-  const same = findSameDish(query.dishName);
-  const ranked = rankDishes(query);
+  const key = cacheKey(query);
+  if (matchCache[key]) return matchCache[key];
+  const result = computeMatch(query);
+  if (matchCacheSize >= MATCH_CACHE_LIMIT) {
+    // 简单粗暴地整体清空，避免在小程序里维护 LRU。
+    Object.keys(matchCache).forEach((k) => delete matchCache[k]);
+    matchCacheSize = 0;
+  }
+  matchCache[key] = result;
+  matchCacheSize += 1;
+  return result;
+}
+
+function computeMatch(query: RecognizedDish): MealMatch {
+  const idx = ensureIndex();
+  const queryName = prepare(query.dishName);
+  const same = findSameDish(queryName);
+  const ranked = rankDishes(query, queryName);
 
   if (same.dish) {
-    const entry = ENTRIES.get(same.dish);
+    const entry = idx.entries[same.dish];
     const head = entry
       ? [toCandidate(entry, 1, `菜名与库中「${same.dish}」一致，直接取该菜数据`)]
       : [];
@@ -303,22 +373,27 @@ export function matchMeal(query: RecognizedDish): MealMatch {
 
 /** 结果页「手动搜索」用：按关键词在库里找菜 */
 export function searchDishes(keyword: string, limit = 20): DishCandidate[] {
-  const kw = normalize(keyword);
+  const kwPrepared = prepare(keyword);
+  const kw = kwPrepared.norm;
   if (!kw) return [];
+  const idx = ensureIndex();
   const out: ScoredDish[] = [];
-  ENTRIES.forEach((entry) => {
-    let best = similarity(kw, entry.dish);
-    if (normalize(entry.dish).includes(kw)) best = Math.max(best, 0.9);
+  idx.names.forEach((name) => {
+    const entry = idx.entries[name];
+    let best = similarityPrepared(kwPrepared, entry.name);
+    if (entry.name.norm.indexOf(kw) >= 0) best = Math.max(best, 0.9);
     entry.records.forEach((r) => {
-      let s = similarity(kw, r.ingredient) * 0.9;
-      if (normalize(r.ingredient).includes(kw)) s = Math.max(s, 0.8);
+      const ing = idx.ingPrepared[r.id];
+      if (!ing) return;
+      let s = similarityPrepared(kwPrepared, ing) * 0.9;
+      if (ing.norm.indexOf(kw) >= 0) s = Math.max(s, 0.8);
       best = Math.max(best, s);
     });
     if (best < 0.3) return;
     out.push({
       candidate: toCandidate(entry, best, `搜索「${keyword}」匹配到`),
       score: best,
-      maxMinutes: entry.records.reduce((m, r) => Math.max(m, r.minutes), 0),
+      maxMinutes: entry.maxMinutes,
     });
   });
   out.sort((a, b) =>

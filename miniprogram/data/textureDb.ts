@@ -74,29 +74,51 @@ function toRecord(row: TextureRow, index: number): TextureRecord {
   };
 }
 
-/** 全部质构记录（模块加载时解码一次） */
-export const TEXTURE_RECORDS: TextureRecord[] = TEXTURE_ROWS.map(toRecord);
+// 解码与建索引都是**懒加载**：小程序启动时不做，第一次真正用到才跑一遍。
+// 否则每个 import 了 service 的页面（包括首页）都要在启动路径上白等一次解码。
+let cache: {
+  records: TextureRecord[];
+  byDish: Record<string, TextureRecord[]>;
+  byId: Record<string, TextureRecord>;
+  dishNames: string[];
+} | null = null;
 
-/** 菜名 → 该菜的全部记录（同一道菜可能有多种食材、多个烹饪时长） */
-const BY_DISH = new Map<string, TextureRecord[]>();
-TEXTURE_RECORDS.forEach((rec) => {
-  const list = BY_DISH.get(rec.dish);
-  if (list) {
-    list.push(rec);
-  } else {
-    BY_DISH.set(rec.dish, [rec]);
-  }
-});
+function ensure() {
+  if (cache) return cache;
+  const records = TEXTURE_ROWS.map(toRecord);
+  const byDish: Record<string, TextureRecord[]> = {};
+  const byId: Record<string, TextureRecord> = {};
+  const dishNames: string[] = [];
+  records.forEach((rec) => {
+    byId[rec.id] = rec;
+    if (byDish[rec.dish]) {
+      byDish[rec.dish].push(rec);
+    } else {
+      byDish[rec.dish] = [rec];
+      dishNames.push(rec.dish);
+    }
+  });
+  cache = { records, byDish, byId, dishNames };
+  return cache;
+}
+
+/** 全部质构记录 */
+export function allRecords(): TextureRecord[] {
+  return ensure().records;
+}
 
 /** 数据库中出现过的全部菜名 */
-export const ALL_DISH_NAMES: string[] = Array.from(BY_DISH.keys());
+export function allDishNames(): string[] {
+  return ensure().dishNames;
+}
 
+/** 某道菜的全部记录（同一道菜可能有多种食材、多个烹饪时长） */
 export function recordsOfDish(dish: string): TextureRecord[] {
-  return BY_DISH.get(dish) || [];
+  return ensure().byDish[dish] || [];
 }
 
 export function findRecordById(id: string): TextureRecord | undefined {
-  return TEXTURE_RECORDS.find((r) => r.id === id);
+  return ensure().byId[id];
 }
 
 // ----------------------------------------------------------------------------

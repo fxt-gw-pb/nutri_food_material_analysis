@@ -1,6 +1,10 @@
 // 中文短文本相似度（菜名 / 食材名匹配用）。
 // 纯本地计算，不依赖任何模型：字级 + 二元组 Dice 系数，再对「丝片块丁」这类
 // 刀工后缀做一次归一化重算，取最高分。
+//
+// 性能注意：一次匹配要跑上千次比较，而 normalize / coreWord 里都是正则。
+// 因此对「库中固定不变的名字」应当先用 prepare() 预处理一次，之后走
+// similarityPrepared()，避免每次匹配都把整库的名字重新正则一遍。
 
 /** 归一化：去掉空白、标点与常见修饰词，只留下参与比较的汉字/字母/数字 */
 export function normalize(text: string): string {
@@ -25,6 +29,17 @@ export function coreWord(text: string): string {
   return s || normalize(text);
 }
 
+/** 预处理过的名字：归一化形 + 去刀工后缀的核心形 */
+export interface Prepared {
+  norm: string;
+  core: string;
+}
+
+export function prepare(text: string): Prepared {
+  const norm = normalize(text);
+  return { norm, core: coreWord(norm) };
+}
+
 /** 公共后缀长度：中文食材名的尾字往往就是品类（虾 / 鱼 / 蛋 / 豆腐） */
 function commonSuffixLength(a: string, b: string): number {
   let n = 0;
@@ -45,13 +60,15 @@ function bigrams(s: string): string[] {
 /** 两个字符串数组的 Dice 系数 */
 function dice(a: string[], b: string[]): number {
   if (a.length === 0 || b.length === 0) return 0;
-  const counts = new Map<string, number>();
-  a.forEach((x) => counts.set(x, (counts.get(x) || 0) + 1));
+  const counts: Record<string, number> = {};
+  a.forEach((x) => {
+    counts[x] = (counts[x] || 0) + 1;
+  });
   let hit = 0;
   b.forEach((x) => {
-    const c = counts.get(x) || 0;
+    const c = counts[x] || 0;
     if (c > 0) {
-      counts.set(x, c - 1);
+      counts[x] = c - 1;
       hit += 1;
     }
   });
@@ -62,26 +79,32 @@ function rawSimilarity(a: string, b: string): number {
   if (!a || !b) return 0;
   if (a === b) return 1;
   // 一方完全包含另一方（如「虾仁」⊂「韭菜虾仁」），给一个偏高的基准分。
-  const contain = a.includes(b) || b.includes(a)
-    ? Math.min(a.length, b.length) / Math.max(a.length, b.length)
-    : 0;
+  const contain =
+    a.indexOf(b) >= 0 || b.indexOf(a) >= 0
+      ? Math.min(a.length, b.length) / Math.max(a.length, b.length)
+      : 0;
   const uni = dice(a.split(''), b.split(''));
   const bi = dice(bigrams(a), bigrams(b));
   // 二元组更能体现词序，权重高一些；单字保证「虾仁 / 鲜虾」这类也能捞回来。
   return Math.max(contain, 0.6 * bi + 0.4 * uni);
 }
 
-/** 综合相似度：原词与去刀工后缀的核心词各算一遍，取高者。范围 0–1 */
-export function similarity(a: string, b: string): number {
-  const na = normalize(a);
-  const nb = normalize(b);
-  if (!na || !nb) return 0;
-  if (na === nb) return 1;
-  const ca = coreWord(na);
-  const cb = coreWord(nb);
+/** 综合相似度（输入已预处理）。范围 0–1 */
+export function similarityPrepared(a: Prepared, b: Prepared): number {
+  if (!a.norm || !b.norm) return 0;
+  if (a.norm === b.norm) return 1;
   // 同品类加成：「基围虾」和「鲜虾」字面几乎不重合，但尾字同为「虾」，
   // 按需求「食材优先」的原则，这类应当能被捞成相似备选。
-  const suffix = commonSuffixLength(ca, cb);
+  const suffix = commonSuffixLength(a.core, b.core);
   const suffixScore = suffix > 0 ? Math.min(0.75, 0.45 + 0.15 * suffix) : 0;
-  return Math.max(rawSimilarity(na, nb), rawSimilarity(ca, cb) * 0.98, suffixScore);
+  return Math.max(
+    rawSimilarity(a.norm, b.norm),
+    rawSimilarity(a.core, b.core) * 0.98,
+    suffixScore,
+  );
+}
+
+/** 综合相似度（原始字符串）。范围 0–1 */
+export function similarity(a: string, b: string): number {
+  return similarityPrepared(prepare(a), prepare(b));
 }

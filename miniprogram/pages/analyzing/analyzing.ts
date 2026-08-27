@@ -21,6 +21,10 @@ const STEP_ORDER: AnalysisStatus[] = ['pending', 'preprocessing', 'recognizing',
 
 // 轮询最长等待时间：超过则视为识别超时（防止后台任务异常时一直转圈）。
 const MAX_POLL_MS = 90000;
+// 两次轮询之间的间隔。注意是「上一次拿到结果之后再等这么久」，而不是定时器硬发：
+// 云数据库查询在真机 / 模拟器上可能超过间隔时间，用 setInterval 会让请求越堆越多，
+// 直接把 JS 线程和网络桥堵死（模拟器会报「长时间没有响应」）。
+const POLL_INTERVAL_MS = 1000;
 
 Page({
   data: {
@@ -32,6 +36,8 @@ Page({
   analysisId: '',
   timer: null as number | null,
   pollStartedAt: 0,
+  /** 页面已卸载：卸载后到达的响应不再安排下一次轮询 */
+  disposed: false,
 
   onLoad(query: Record<string, string | undefined>) {
     this.analysisId = query.analysisId || '';
@@ -41,23 +47,33 @@ Page({
       return;
     }
     this.pollStartedAt = Date.now();
+    this.disposed = false;
     this.poll();
-    this.timer = setInterval(() => this.poll(), 400);
   },
 
   onUnload() {
+    this.disposed = true;
     this.clearTimer();
   },
 
   clearTimer() {
     if (this.timer !== null) {
-      clearInterval(this.timer);
+      clearTimeout(this.timer);
       this.timer = null;
     }
   },
 
+  /** 安排下一次轮询（串行：只有上一次有结果了才排下一次） */
+  scheduleNext() {
+    if (this.disposed) return;
+    this.clearTimer();
+    this.timer = setTimeout(() => this.poll(), POLL_INTERVAL_MS);
+  },
+
   poll() {
+    if (this.disposed) return;
     if (Date.now() - this.pollStartedAt > MAX_POLL_MS) {
+      this.disposed = true;
       this.clearTimer();
       wx.showModal({
         title: '识别超时',
@@ -75,9 +91,11 @@ Page({
           steps: this.computeSteps(status),
         });
         if (status === 'completed') {
+          this.disposed = true;
           this.clearTimer();
           wx.redirectTo({ url: `/pages/result/result?analysisId=${this.analysisId}` });
         } else if (status === 'failed') {
+          this.disposed = true;
           this.clearTimer();
           wx.showModal({
             title: '识别失败',
@@ -85,10 +103,13 @@ Page({
             showCancel: false,
             success: () => wx.navigateBack(),
           });
+        } else {
+          this.scheduleNext();
         }
       })
       .catch((err) => {
         console.error('[analyzing] poll failed', err);
+        this.disposed = true;
         this.clearTimer();
         wx.showToast({ title: '识别任务不存在', icon: 'none' });
         setTimeout(() => wx.navigateBack(), 1200);

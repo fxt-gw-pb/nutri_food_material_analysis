@@ -43,6 +43,8 @@ Page({
   analysisId: '',
   dish: null as Dish | null,
   selectedDish: '' as string,
+  /** 搜索防抖：连续输入时不必每敲一个字就全库搜一遍 */
+  searchTimer: null as number | null,
 
   onLoad(query: Record<string, string | undefined>) {
     this.analysisId = query.analysisId || '';
@@ -113,7 +115,20 @@ Page({
   onSearchInput(e: WechatMiniprogram.Input) {
     const keyword = e.detail.value;
     this.setData({ keyword });
-    this.refresh();
+    if (this.searchTimer !== null) {
+      clearTimeout(this.searchTimer);
+    }
+    this.searchTimer = setTimeout(() => {
+      this.searchTimer = null;
+      this.refresh();
+    }, 250);
+  },
+
+  onUnload() {
+    if (this.searchTimer !== null) {
+      clearTimeout(this.searchTimer);
+      this.searchTimer = null;
+    }
   },
 
   /** 用户从备选里换了一道菜 */
