@@ -14,8 +14,12 @@
 // 千问 API Key 从云函数环境变量 DASHSCOPE_API_KEY 读取，绝不写入代码 / 前端 / 仓库。
 // 换 Key 只需在云开发控制台改这个环境变量，代码不用动（步骤见 README「更换 API Key」）。
 // 需在云开发控制台为本函数设置：环境变量 DASHSCOPE_API_KEY、超时时间 60s。
+//
+// 依赖：只有 wx-server-sdk。HTTP 请求用 Node 内置的 https，**故意不引入 axios**——
+// 云端安装依赖时 axios 会连带拉一串包，是「上传并部署」卡在 99% 的常见原因。
+// 少一个第三方依赖，云函数上传就快一截，也更不容易失败。
 const cloud = require('wx-server-sdk');
-const axios = require('axios');
+const https = require('https');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
@@ -97,32 +101,79 @@ async function callQwen(imageUrl) {
   const apiKey = process.env.DASHSCOPE_API_KEY;
   if (!apiKey) throw new Error('未配置 DASHSCOPE_API_KEY 环境变量');
 
-  const resp = await axios.post(
-    DASHSCOPE_URL,
-    {
-      model: MODEL,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: imageUrl } },
-            { type: 'text', text: USER_PROMPT },
-          ],
-        },
-      ],
-    },
-    {
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      timeout: 50000,
-    },
-  );
+  const body = {
+    model: MODEL,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: imageUrl } },
+          { type: 'text', text: USER_PROMPT },
+        ],
+      },
+    ],
+  };
+
+  const data = await postJson(DASHSCOPE_URL, body, {
+    Authorization: `Bearer ${apiKey}`,
+  });
 
   const content =
-    resp.data && resp.data.choices && resp.data.choices[0] && resp.data.choices[0].message
-      ? resp.data.choices[0].message.content
+    data && data.choices && data.choices[0] && data.choices[0].message
+      ? data.choices[0].message.content
       : '';
   return parseDish(content);
+}
+
+/**
+ * 用 Node 内置 https 发一个 JSON POST 并把响应解析成对象。
+ * 这是 axios 在本函数里唯一被用到的能力，自己写十几行就够，省掉一个第三方依赖。
+ */
+function postJson(url, body, headers) {
+  return new Promise((resolve, reject) => {
+    const payload = Buffer.from(JSON.stringify(body), 'utf8');
+    const target = new URL(url);
+    const req = https.request(
+      {
+        hostname: target.hostname,
+        port: target.port || 443,
+        path: target.pathname + target.search,
+        method: 'POST',
+        headers: Object.assign(
+          {
+            'Content-Type': 'application/json',
+            // 必须按字节数算，中文 prompt 的字符数 ≠ 字节数，写错会被服务端判为请求体截断。
+            'Content-Length': payload.length,
+          },
+          headers,
+        ),
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8');
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            reject(new Error(`千问接口返回 ${res.statusCode}：${text.slice(0, 300)}`));
+            return;
+          }
+          try {
+            resolve(JSON.parse(text));
+          } catch (e) {
+            reject(new Error('千问响应不是合法 JSON：' + text.slice(0, 200)));
+          }
+        });
+      },
+    );
+    // 云函数超时设为 60s，这里留 50s，好让错误由我们自己抛出而不是被平台直接掐断。
+    req.setTimeout(50000, () => {
+      req.destroy(new Error('调用千问接口超时（50s）'));
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
 }
 
 const SYSTEM_PROMPT =
