@@ -23,6 +23,10 @@ const https = require('https');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
+// 更新指令。CloudBase 更新嵌套对象时会把它拍平成点路径（result.dish.dishName…），
+// 遇到 result.dish 当前是 null 就会报「Cannot create field ... in element {dish: null}」。
+// _.set(obj) 表示「把这个字段整体替换成该对象」，不走合并，正是这里需要的语义。
+const _ = db.command;
 
 const COLLECTION = 'meal_records';
 // DashScope OpenAI 兼容模式端点
@@ -125,7 +129,10 @@ async function processAnalysis(analysisId) {
     stage = '写回识别结果';
     await db.collection(COLLECTION).doc(analysisId).update({
       data: {
-        'result.dish': dish,
+        // 必须用 _.set：dish 是个嵌套对象，直接赋值会被拍平成
+        // result.dish.dishName / result.dish.cookingMethod…，
+        // 而 result.dish 初始为 null，Mongo 无法在 null 上创建子字段。
+        'result.dish': _.set(dish),
         status: 'completed',
         errorStage: '',
         errorMessage: '',

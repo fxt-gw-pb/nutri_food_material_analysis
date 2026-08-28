@@ -165,11 +165,15 @@ export function saveRecordSelections(
   analysisId: string,
   selections: Record<string, string>,
 ): Promise<void> {
-  // 整份覆盖 selectedRecords，避免用局部路径更新时删不掉已撤销的改选。
+  // 必须用 command.set 整份替换：直接传对象会被 CloudBase 拍平成
+  // selectedRecords.<食材名> 的点路径去**合并**，那样「恢复自动匹配」删掉的键
+  // 根本不会从库里消失，用户会发现撤销改选没生效。
   return db()
     .collection(COLLECTION)
     .doc(analysisId)
-    .update({ data: { selectedRecords: selections, updatedAt: Date.now() } })
+    .update({
+      data: { selectedRecords: db().command.set(selections), updatedAt: Date.now() },
+    })
     .then(() => undefined);
 }
 
