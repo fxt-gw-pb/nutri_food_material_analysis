@@ -1,7 +1,7 @@
 <view class="container">
-  <view class="estimate-banner">质构数据为同类菜肴实测参考值</view>
+  <view class="estimate-banner">质构数据为同类食材实测参考值</view>
 
-  <!-- 照片与时间 -->
+  <!-- 照片与识别出的菜 -->
   <view class="card meal-head">
     <image wx:if="{{imageUrl}}" class="meal-img" src="{{imageUrl}}" mode="aspectFill" />
     <view wx:else class="meal-img thumb-placeholder">🍽️</view>
@@ -27,93 +27,110 @@
     </view>
   </view>
 
-  <!-- 匹配到的菜 + 它的源数据 -->
-  <view class="card dish">
+  <!-- 整体摘要 -->
+  <view class="card">
     <view class="dish-head">
-      <view class="title-md">{{matched ? matchedDish : '未匹配到菜品'}}</view>
-      <view class="tag match-tag">{{matchTypeText}}</view>
+      <view class="title-md">这道菜的食材</view>
+      <view class="tag match-tag">{{matchedCount}}/{{totalCount}} 已匹配</view>
     </view>
     <view class="muted match-note">{{matchNote}}</view>
-    <view wx:if="{{edited}}" class="edited-row">
-      <text class="tag tag-edited">已手动改选</text>
-      <text class="reset-link" bindtap="resetSelection">恢复自动匹配</text>
+    <view wx:if="{{matchedCount > 0}}" class="summary-line">
+      <text class="summary-label muted">整体</text>
+      <text class="summary-value">{{summary}}</text>
     </view>
+  </view>
 
-    <block wx:if="{{matched}}">
-      <view class="summary-line">
-        <text class="summary-label muted">整体</text>
-        <text class="summary-value">{{summary}}</text>
+  <!-- 逐食材数据：一种食材一张卡 -->
+  <view wx:for="{{ingredients}}" wx:key="name" wx:for-item="ing" wx:for-index="i" class="card ing-card">
+    <view class="row-head">
+      <text class="ing-name">{{ing.name}}</text>
+      <text class="tag {{ing.matched ? (ing.edited ? 'tag-edited' : 'match-tag') : 'tag-none'}}">{{ing.matchTypeText}}</text>
+    </view>
+    <view class="muted match-note">{{ing.reason}}</view>
+
+    <block wx:if="{{ing.matched}}">
+      <view class="matched-from muted">
+        数据出自「{{ing.matchedDish}}」的{{ing.matchedIngredient}} · {{ing.matchedCookingText}} · {{ing.category}}
       </view>
 
-      <view class="divider"></view>
-      <view class="ing-title muted">这道菜的实测数据（{{rows.length}} 项取样）</view>
-
-      <!-- 一种原食材一行；整菜取样时只有一行 -->
-      <view wx:for="{{rows}}" wx:key="source" wx:for-item="row" class="row-block">
-        <view class="row-head">
-          <text class="ing-name">{{row.wholeDish ? '整菜取样' : row.ingredient}}</text>
-          <text class="muted">{{row.cookingText}}</text>
-        </view>
+      <!-- 切割 / 下压两种测试模式并列 -->
+      <view wx:for="{{ing.readings}}" wx:key="testMode" wx:for-item="rd" class="reading-block">
+        <view class="reading-head muted" wx:if="{{ing.readings.length > 1}}">{{rd.testMode}}</view>
 
         <view class="metric-main">
           <text class="metric-label">软硬</text>
           <view class="hardness-track">
-            <view class="hardness-bar" style="width: {{row.hardnessPercent}}%;"></view>
+            <view class="hardness-bar" style="width: {{rd.hardnessPercent}}%;"></view>
           </view>
-          <text class="metric-value">{{row.hardnessText}}</text>
+          <text class="metric-value">{{rd.hardnessText}}</text>
         </view>
 
         <view class="metric-row">
-          <text class="metric-pill">嚼起来 {{row.chewinessText}}</text>
-          <text class="metric-pill">{{row.adhesivenessText}}</text>
+          <text class="metric-pill">嚼起来 {{rd.chewinessText}}</text>
+          <text class="metric-pill">{{rd.adhesivenessText}}</text>
         </view>
 
-        <view class="metric-table">
-          <view wx:for="{{row.metrics}}" wx:key="label" wx:for-item="m" class="metric-line">
+        <view wx:if="{{ing.detailOpen}}" class="metric-table">
+          <view wx:for="{{rd.metrics}}" wx:key="label" wx:for-item="m" class="metric-line">
             <text class="metric-name muted">{{m.label}}</text>
             <text class="metric-num">{{m.value}}<text class="metric-unit muted"> {{m.unit}}</text></text>
           </view>
         </view>
       </view>
+
+      <view class="ing-actions">
+        <text class="alt-toggle-sm" data-index="{{i}}" bindtap="toggleDetail">
+          {{ing.detailOpen ? '收起九项指标 ▲' : '看九项完整指标 ▼'}}
+        </text>
+        <text class="alt-toggle-sm" data-index="{{i}}" bindtap="togglePicker">
+          {{ing.pickerOpen ? '收起备选 ▲' : '换一条数据 ▼'}}
+        </text>
+        <text wx:if="{{ing.edited}}" class="reset-link" data-index="{{i}}" bindtap="resetOne">恢复自动匹配</text>
+      </view>
     </block>
-    <view wx:else class="unmatched">库里没有足够接近的菜，请在下方自己选一道</view>
-  </view>
 
-  <!-- 换一道菜 -->
-  <view class="card">
-    <view class="alt-toggle" bindtap="togglePicker">
-      {{pickerOpen ? '收起备选 ▲' : '不是这道菜？换一个 ▼'}}
-    </view>
+    <block wx:else>
+      <view class="unmatched">库里没有足够接近的食材，可以自己挑一条</view>
+      <view class="ing-actions">
+        <text class="alt-toggle-sm" data-index="{{i}}" bindtap="togglePicker">
+          {{ing.pickerOpen ? '收起备选 ▲' : '自己挑一条 ▼'}}
+        </text>
+      </view>
+    </block>
 
-    <view wx:if="{{pickerOpen}}" class="alt-panel">
+    <!-- 备选记录面板 -->
+    <view wx:if="{{ing.pickerOpen}}" class="alt-panel">
       <input
         class="alt-search"
         type="text"
-        placeholder="也可以直接搜菜名或食材，如「豆腐」"
+        placeholder="也可以直接搜食材或菜名，如「土豆」"
         value="{{keyword}}"
         bindinput="onSearchInput"
       />
-      <view wx:if="{{candidates.length === 0}}" class="muted alt-empty">没有找到相关菜品</view>
+      <view wx:if="{{ing.candidateViews.length === 0}}" class="muted alt-empty">没有找到相关数据</view>
       <view
-        wx:for="{{candidates}}"
-        wx:key="dish"
+        wx:for="{{ing.candidateViews}}"
+        wx:key="id"
         wx:for-item="cand"
         class="alt-row {{cand.selected ? 'alt-selected' : ''}}"
-        data-dish="{{cand.dish}}"
-        bindtap="selectDish"
+        data-index="{{i}}"
+        data-id="{{cand.id}}"
+        bindtap="selectRecord"
       >
         <view class="alt-main">
-          <text class="alt-title">{{cand.dish}}</text>
+          <text class="alt-title">{{cand.ingredient}}</text>
           <text class="alt-score">{{cand.scorePercent}}%</text>
         </view>
-        <view class="alt-sub muted">{{cand.ingredientText}} · {{cand.cookingText}} · {{cand.category}}</view>
+        <view class="alt-sub muted">出自「{{cand.dish}}」 · {{cand.cookingText}} · {{cand.testMode}}</view>
         <view class="alt-reason muted">{{cand.reason}}</view>
       </view>
     </view>
   </view>
 
+  <view wx:if="{{totalCount === 0}}" class="card unmatched">没有识别出食材，换一张更清楚的照片试试</view>
+
   <view class="disclaimer">
-    质构数据来自实验室对同类菜肴样本的 TPA 全质构测试，仅供参考软硬与咀嚼难度，不等同于您这一份菜的实测值，也不构成医学建议。
+    质构数据来自实验室对同类食材样本的 TPA 全质构测试（切割 / 下压两种模式），仅供参考软硬与咀嚼难度，不等同于您这一份菜的实测值，也不构成医学建议。
   </view>
 
   <view class="bottom-actions">

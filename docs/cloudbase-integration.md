@@ -13,7 +13,7 @@
   ▼
 CloudBase
   ├── 云存储   meal-images/      原始菜品照片
-  ├── 云函数   analyzeMeal       调用千问视觉模型识别菜名/食材 + 写库
+  ├── 云函数   analyzeMeal       调用千问视觉模型识别菜名 + 全部食材 + 写库
   └── 云数据库 meal_records      识别记录（嵌套 result.dish 与其 ingredients）
                 model_logs       模型调用日志（可选）
 
@@ -27,7 +27,7 @@ CloudBase
 - 目录前缀建议：`meal-images/`（见 `services/config.example.ts` 的 `uploadDir`）。
 
 ### 云函数 `analyzeMeal`
-- 职责：调用千问视觉模型识别**一道**菜的菜名 / 烹饪方式 / 原食材，保存结构化结果（不涉及重量）。
+- 职责：调用千问视觉模型识别**一道**菜的菜名 / 烹饪方式 / **全部食材**，保存结构化结果（不涉及重量）。
 - 详见 [`ai-pipeline.md`](./ai-pipeline.md)。
 - **千问 API Key 只能配置在云函数的环境变量中，前端不得包含。**
 
@@ -50,9 +50,11 @@ CloudBase
   modelName: string,        // 千问模型名
   promptVersion: string,    // prompt 版本
   result: {                 // 识别结果，嵌套存储
-    dish: Dish | null,      // 一道菜：菜名 / 烹饪方式 / 可信度 / ingredients（无重量）
+    dish: Dish | null,      // 一道菜：菜名 / 烹饪方式 / 可信度 / ingredients（全部食材，无重量）
   },
-  selectedDish: string,     // 用户在结果页手动改选的库中菜名，空串=采用自动匹配
+  selectedRecords: {        // 用户在结果页逐食材手动改选的质构记录
+    [识别食材名: string]: string,  // → 质构库记录 id；只存被改过的那几种，空对象=全自动匹配
+  },
   createdAt: number,
   updatedAt: number,
 }
@@ -80,7 +82,7 @@ service 层已拆分为契约 + 两套实现，由 `config.ts` 的 `useCloud` �
 | `createMealAnalysis` | 写本地 Storage，立即生成结果 | `wx.cloud.callFunction({ name: 'analyzeMeal', data })`，返回 `analysisId` |
 | `getMealAnalysisStatus` | 按时间推进状态机 | 查询 `meal_records.status` 或 `db.collection().watch()` 实时监听 |
 | `getMealAnalysisResult` | 读本地 Storage | 查询 `meal_records` 文档 |
-| `saveSelectedDish` | 写本地 Storage | `db.collection('meal_records').doc(id).update({ selectedDish })` |
+| `saveRecordSelections` | 写本地 Storage | `db.collection('meal_records').doc(id).update({ selectedRecords })`（整份覆盖） |
 | `getMealHistory` | 读本地 Storage | `db.collection('meal_records').where({ _openid }).orderBy('createdAt','desc').get()` |
 | `deleteMealRecord` | 删本地 Storage | 删除文档 + `wx.cloud.deleteFile` 清理云存储图片 |
 

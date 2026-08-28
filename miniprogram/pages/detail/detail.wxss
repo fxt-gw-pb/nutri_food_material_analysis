@@ -5,3 +5,20 @@
   line-height: 1.5;
   word-break: break-all;
 }
+
+/* ---- 逐食材展示（与结果页同一套视觉） ---- */
+.tag-none { background: var(--warn-bg); color: var(--warn-text); }
+.matched-from {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+.reading-block { margin-top: 20rpx; }
+.reading-block + .reading-block {
+  border-top: 1rpx solid var(--border);
+  padding-top: 20rpx;
+}
+.reading-head {
+  font-size: 24rpx;
+  margin-bottom: 8rpx;
+}

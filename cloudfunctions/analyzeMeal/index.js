@@ -1,7 +1,9 @@
 // 云函数 analyzeMeal —— 菜品识别（千问 Qwen-VL），单段异步。
 //
-// 本版本只做「看图说出这道菜的菜名 + 烹饪方式 + 原食材」，不再估算任何重量。
-// 一次识别只出一道菜——图里有多样菜时挑最主要的那一道。
+// 本版本只做「看图说出这道菜的菜名 + 烹饪方式 + 全部食材」，不估算任何重量。
+// 一次识别只出一道菜——图里有多样菜时挑最主要的那一道——但要把这道菜里
+// **能分辨的每一种食材都列全**，因为小程序是逐食材去质构库里取数据的：
+// 少列一种食材，用户就少看到一条实测数据。
 // 质构数据的匹配全部在小程序端用内置数据库完成（miniprogram/services/textureMatch.ts）。
 //
 // 两个 action（由前端分两次调用，见 mealService.cloud.ts）：
@@ -22,7 +24,7 @@ const COLLECTION = 'meal_records';
 // DashScope OpenAI 兼容模式端点
 const DASHSCOPE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
 const MODEL = 'qwen-vl-max'; // 可换 qwen-vl-plus（更省）或 -latest 变体
-const PROMPT_VERSION = 'qwen-single-dish-v3';
+const PROMPT_VERSION = 'qwen-dish-ingredients-v4';
 
 exports.main = async (event) => {
   if (event.action === 'process') {
@@ -44,7 +46,7 @@ async function createAnalysis(event) {
       modelName: MODEL,
       promptVersion: PROMPT_VERSION,
       result: { dish: null },
-      selectedDish: '',
+      selectedRecords: {},
       createdAt: now,
       updatedAt: now,
     },
@@ -125,11 +127,13 @@ async function callQwen(imageUrl) {
 
 const SYSTEM_PROMPT =
   '你是专业的中餐菜品识别助手。根据照片说出【一道】菜的菜名、整道菜的烹饪方式，' +
-  '以及这道菜里可分辨的原食材及其各自的烹饪方式。不需要估计重量或份量。' +
+  '以及这道菜里**所有**可分辨的食材及其各自的烹饪方式。不需要估计重量或份量。' +
+  '下游会拿每一种食材单独去查实测质构数据，因此食材要尽量列全、不要合并成一个笼统的名字。' +
   '只输出 JSON，不要任何解释文字或 markdown 代码块。';
 
 const USER_PROMPT = [
-  '识别照片里最主要的那一道菜（只出一道），严格按以下 JSON 结构输出（字段名与类型完全一致）：',
+  '识别照片里最主要的那一道菜（只出一道），并把这道菜里的食材列全。',
+  '严格按以下 JSON 结构输出（字段名与类型完全一致）：',
   '{"dish":{"dishName":"string","cookingMethod":"string",' +
     '"recognitionConfidence":"high|medium|low",' +
     '"ingredients":[{"name":"string","cookingMethod":"string"}]}}',
@@ -137,8 +141,13 @@ const USER_PROMPT = [
   '- 图里出现多样菜时，只输出占比最大、最像「主菜」的那一道，不要输出多道；',
   '- dishName 用最常见的中文标准菜名（如 大煮干丝 / 清蒸石斑鱼 / 红烧肉），不要加形容词或份量；',
   '- cookingMethod 用单个简短中文词：煮/炖/蒸/炒/炸/煎/烤/焖/烧/卤/凉拌/白灼/爆炒/红烧/清蒸 等；',
-  '- ingredients 列出这道菜中肉眼可分辨的主要原食材（一般 1–4 种），name 用食材本名并保留刀工，' +
-    '如 豆腐丝 / 火腿丝 / 排骨 / 白菜帮；每种食材的 cookingMethod 写它在这道菜里的受热方式；',
+  '- ingredients 要列出这道菜里**每一种**看得见或按这道菜的常规做法必然含有的食材，' +
+    '通常 2–6 种，最多 10 种；宁可多列一种，也不要漏掉主料或配菜；',
+  '- name 用食材本名并保留刀工形态，如 豆腐丝 / 火腿丝 / 带皮五花肉 / 土豆丝 / 白菜帮；' +
+    '不要用「蔬菜」「肉」这种笼统词，也不要写成「土豆和青椒」这种复合名——一种食材一个条目；',
+  '- 葱、姜、蒜、香菜、干辣椒、花椒等只起调味作用的配料不要列入；',
+  '- 每种食材的 cookingMethod 写它在这道菜里的受热方式（同一道菜里不同食材可以不同，' +
+    '如回锅肉里五花肉是「炒」而蒜苗也是「炒」；凉拌菜里生食的写「凉拌」）；',
   '- recognitionConfidence 只能取 "high"/"medium"/"low"；',
   '- 若图中没有可识别的食物，输出 {"dish":null}。',
 ].join('\n');
@@ -172,12 +181,20 @@ function normalizeDish(d) {
   const dishName = String((d && d.dishName) || '未知菜品').trim();
   const cookingMethod = String((d && d.cookingMethod) || '').trim();
   const rawIngredients = Array.isArray(d && d.ingredients) ? d.ingredients : [];
+  const seen = Object.create(null);
   const ingredients = rawIngredients
     .map((ing) => ({
       name: String((ing && ing.name) || '').trim(),
       cookingMethod: String((ing && ing.cookingMethod) || cookingMethod).trim(),
     }))
-    .filter((ing) => ing.name);
+    .filter((ing) => {
+      // 模型偶尔会把同一种食材列两遍；这里去重，避免前端出现两张一模一样的卡片。
+      if (!ing.name || seen[ing.name]) return false;
+      seen[ing.name] = true;
+      return true;
+    })
+    // 与前端 MAX_QUERY_INGREDIENTS 对齐，防止极端情况下列出几十种配料。
+    .slice(0, 10);
   return {
     dishName,
     cookingMethod,

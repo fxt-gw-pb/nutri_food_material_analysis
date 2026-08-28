@@ -18,15 +18,20 @@ export function normalize(text: string): string {
  *  只收真正表示形态的字——像「花」「皮」会把「菜花」削成「菜」，反而误伤，故不收。 */
 const CUT_SUFFIX = /(丝|片|块|丁|段|条|末|粒|泥|仁)$/;
 
-/** 提取核心词：剥掉刀工后缀（最多剥两层，如「五花肉片」→「五花肉」） */
+/** 烹饪器具词：质构库里有「鸭肉高压锅」「高压锅胡萝卜」这类把器具粘进食材名的写法，
+ *  它描述的是怎么做而不是这是什么，比较食材时先剥掉，否则「鸭肉」会匹配不上「鸭肉高压锅」。 */
+const DEVICE_WORDS = /(高压锅|电压力锅|空气炸锅|电饭煲|微波炉|烤箱|砂锅)/g;
+
+/** 提取核心词：剥掉器具词与刀工后缀（后缀最多剥两层，如「五花肉片」→「五花肉」） */
 export function coreWord(text: string): string {
-  let s = normalize(text);
+  const base = normalize(text);
+  let s = base.replace(DEVICE_WORDS, '') || base;
   for (let i = 0; i < 2; i += 1) {
     const next = s.replace(CUT_SUFFIX, '');
     if (next === s || next.length < 1) break;
     s = next;
   }
-  return s || normalize(text);
+  return s || base;
 }
 
 /** 预处理过的名字：归一化形 + 去刀工后缀的核心形 */

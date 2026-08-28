@@ -1,17 +1,26 @@
 import {
   getMealAnalysisResult,
-  saveSelectedDish,
+  saveRecordSelections,
   saveMealType,
 } from '../../services/mealService';
 import { Dish, MealType } from '../../types/index';
 import { confidenceLabel } from '../../utils/confidence';
 import { formatDateTime, MEAL_TYPE_OPTIONS, suggestMealType } from '../../utils/format';
-import { resolveMeal, matchTypeLabel, TextureRow } from '../../utils/texture';
-import { DishCandidate, searchDishes } from '../../services/textureMatch';
+import { resolveMeal, IngredientRow, RecordSelections } from '../../utils/texture';
+import { RecordCandidate, searchRecords } from '../../services/textureMatch';
 
-/** 备选菜的展示模型（多一个「是否当前选中」） */
-interface CandidateView extends DishCandidate {
+/** 备选记录的展示模型（多一个「是否当前选中」） */
+interface CandidateView extends RecordCandidate {
   selected: boolean;
+}
+
+/** 页面上的食材行 = 匹配结果 + 两个折叠开关 + 备选列表 */
+interface IngredientView extends IngredientRow {
+  /** 九项完整指标是否展开 */
+  detailOpen: boolean;
+  /** 备选记录面板是否展开 */
+  pickerOpen: boolean;
+  candidateViews: CandidateView[];
 }
 
 Page({
@@ -21,28 +30,30 @@ Page({
     mealType: '' as MealType | '',
     mealTypeOptions: MEAL_TYPE_OPTIONS,
 
-    /** 识别与匹配 */
+    /** 识别出的菜 */
     recognizedName: '',
     cookingMethod: '',
     confidenceText: '',
-    matchTypeText: '',
-    matchNote: '',
+    /** 库中的同名菜（有则说明整道菜都对得上） */
     matchedDish: '',
-    matched: false,
-    edited: false,
     summary: '',
-    /** 这道菜的源数据：每种原食材一行 */
-    rows: [] as TextureRow[],
+    matchedCount: 0,
+    totalCount: 0,
+    /** 「已匹配 3/4 种食材」这样的一行 */
+    matchNote: '',
 
-    /** 备选菜面板 */
-    pickerOpen: false,
+    /** 逐食材结果 */
+    ingredients: [] as IngredientView[],
+
+    /** 当前展开备选面板的食材下标，-1 表示都收起 */
+    pickerIndex: -1,
     keyword: '',
-    candidates: [] as CandidateView[],
   },
 
   analysisId: '',
   dish: null as Dish | null,
-  selectedDish: '' as string,
+  /** 用户逐食材的手动改选：识别食材名 → 质构记录 id */
+  selections: {} as RecordSelections,
   /** 搜索防抖：连续输入时不必每敲一个字就全库搜一遍 */
   searchTimer: null as number | null,
 
@@ -55,7 +66,7 @@ Page({
     getMealAnalysisResult(this.analysisId)
       .then((meal) => {
         this.dish = meal.dish;
-        this.selectedDish = meal.selectedDish || '';
+        this.selections = meal.selectedRecords || {};
         const mealType = meal.mealType || suggestMealType();
         this.setData({
           imageUrl: meal.imageUrl,
@@ -78,38 +89,57 @@ Page({
 
   /** 重新算一遍匹配并刷新页面（改选后也走这里） */
   refresh() {
-    const r = resolveMeal(this.dish, this.selectedDish);
+    const r = resolveMeal(this.dish, this.selections);
+    const pickerIndex = this.data.pickerIndex;
+    const keyword = this.data.keyword.trim();
+    // 展开的那一行如果在搜索，用搜索结果替掉它的备选列表。
+    const searched = keyword && pickerIndex >= 0 ? searchRecords(keyword) : null;
+
+    const ingredients: IngredientView[] = r.ingredients.map((row, i) => {
+      const prev = this.data.ingredients[i];
+      const list = searched && i === pickerIndex ? searched : row.candidates;
+      return {
+        ...row,
+        // 没匹配上的食材默认把指标区展开也没意义，保持用户此前的展开状态。
+        detailOpen: prev ? prev.detailOpen : false,
+        pickerOpen: i === pickerIndex,
+        candidateViews: list.map((c) => ({ ...c, selected: c.id === row.recordId })),
+      };
+    });
+
     this.setData({
       recognizedName: r.recognizedName,
       cookingMethod: r.cookingMethod,
       confidenceText: confidenceLabel(this.dish ? this.dish.recognitionConfidence : 'medium'),
-      matchTypeText: matchTypeLabel(r.matchType),
-      matchNote:
-        r.matchType === 'dish'
-          ? `与库中「${r.matchedDish}」同名，直接取该菜的实测数据`
-          : r.matchType === 'ingredient'
-            ? '库中没有同名菜，已按原食材与烹饪方式找了最接近的一道'
-            : '库中没有足够接近的菜，请在下方自己选一道',
       matchedDish: r.matchedDish,
-      matched: r.rows.length > 0,
-      edited: r.edited,
       summary: r.summary,
-      rows: r.rows,
-      candidates: this.buildCandidates(
-        this.data.keyword.trim() ? searchDishes(this.data.keyword) : r.candidates,
-        r.matchedDish,
-      ),
-      // 没匹配上时默认把备选面板展开，省得老人还要找入口
-      pickerOpen: this.data.pickerOpen || r.rows.length === 0,
+      matchedCount: r.matchedCount,
+      totalCount: r.totalCount,
+      matchNote: this.buildMatchNote(r.matchedDish, r.matchedCount, r.totalCount),
+      ingredients,
     });
   },
 
-  buildCandidates(list: DishCandidate[], selected: string): CandidateView[] {
-    return list.map((c) => ({ ...c, selected: c.dish === selected }));
+  buildMatchNote(matchedDish: string, matched: number, total: number): string {
+    if (total === 0) return '没有识别出食材';
+    const head = matchedDish
+      ? `库中有同名菜「${matchedDish}」，食材数据优先取自这道菜`
+      : '库中没有同名菜，已为每种食材单独找最接近的实测数据';
+    return `${head}；${total} 种食材中匹配到 ${matched} 种`;
   },
 
-  togglePicker() {
-    this.setData({ pickerOpen: !this.data.pickerOpen });
+  /** 展开 / 收起某种食材的九项完整指标 */
+  toggleDetail(e: WechatMiniprogram.TouchEvent) {
+    const i = Number(e.currentTarget.dataset.index);
+    const key = `ingredients[${i}].detailOpen`;
+    this.setData({ [key]: !this.data.ingredients[i].detailOpen });
+  },
+
+  /** 展开 / 收起某种食材的备选面板（同时只开一个，省得页面太长） */
+  togglePicker(e: WechatMiniprogram.TouchEvent) {
+    const i = Number(e.currentTarget.dataset.index);
+    const next = this.data.pickerIndex === i ? -1 : i;
+    this.setData({ pickerIndex: next, keyword: '' }, () => this.refresh());
   },
 
   onSearchInput(e: WechatMiniprogram.Input) {
@@ -131,24 +161,32 @@ Page({
     }
   },
 
-  /** 用户从备选里换了一道菜 */
-  selectDish(e: WechatMiniprogram.TouchEvent) {
-    const dish = e.currentTarget.dataset.dish as string;
-    if (!dish) return;
-    this.selectedDish = dish;
+  /** 用户为某种食材换了一条实测数据 */
+  selectRecord(e: WechatMiniprogram.TouchEvent) {
+    const { index, id } = e.currentTarget.dataset as { index: number; id: string };
+    const row = this.data.ingredients[Number(index)];
+    if (!row || !id) return;
+    this.selections = { ...this.selections, [row.name]: id };
+    this.persistSelections();
     this.refresh();
-    saveSelectedDish(this.analysisId, dish).catch((err) =>
-      console.error('[result] save selectedDish failed', err),
-    );
-    wx.showToast({ title: `已换成「${dish}」`, icon: 'none' });
+    wx.showToast({ title: `已为「${row.name}」换数据`, icon: 'none' });
   },
 
-  /** 撤销手动改选，回到自动匹配结果 */
-  resetSelection() {
-    this.selectedDish = '';
+  /** 撤销某种食材的手动改选，回到自动匹配 */
+  resetOne(e: WechatMiniprogram.TouchEvent) {
+    const i = Number(e.currentTarget.dataset.index);
+    const row = this.data.ingredients[i];
+    if (!row) return;
+    const next = { ...this.selections };
+    delete next[row.name];
+    this.selections = next;
+    this.persistSelections();
     this.refresh();
-    saveSelectedDish(this.analysisId, '').catch((err) =>
-      console.error('[result] reset selectedDish failed', err),
+  },
+
+  persistSelections() {
+    saveRecordSelections(this.analysisId, this.selections).catch((err) =>
+      console.error('[result] save selections failed', err),
     );
   },
 

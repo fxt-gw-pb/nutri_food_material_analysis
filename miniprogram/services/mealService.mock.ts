@@ -5,8 +5,8 @@
 // 通过 config.ts 的 useCloud=false 启用（见分发器 mealService.ts）。
 // 真实实现见 mealService.cloud.ts。
 //
-// 注意：质构匹配在两种模式下完全一致（本地 textureMatch），mock 只负责
-// 伪造「视觉模型识别出的菜名与食材」。
+// 注意：质构匹配在两种模式下完全一致（本地 textureMatch，逐食材匹配），
+// mock 只负责伪造「视觉模型识别出的菜名与全部食材」。
 // ============================================================================
 
 import { MealAnalysis, AnalysisStatus, MealHistoryItem, MealType, Dish } from '../types/index';
@@ -132,12 +132,15 @@ export function getMealAnalysisResult(analysisId: string): Promise<MealAnalysis>
   return Promise.resolve(rec);
 }
 
-export function saveSelectedDish(analysisId: string, selectedDish: string): Promise<void> {
+export function saveRecordSelections(
+  analysisId: string,
+  selections: Record<string, string>,
+): Promise<void> {
   const rec = findRecord(analysisId);
   if (!rec) {
     return Promise.reject(new Error('analysis not found'));
   }
-  rec.selectedDish = selectedDish;
+  rec.selectedRecords = selections;
   rec.updatedAt = Date.now();
   upsertRecord(rec);
   return Promise.resolve();
@@ -169,14 +172,16 @@ export function deleteMealRecord(analysisId: string): Promise<void> {
 }
 
 function toHistoryItem(rec: MealAnalysis): MealHistoryItem {
-  const resolved = resolveMeal(rec.dish, rec.selectedDish);
+  const resolved = resolveMeal(rec.dish, rec.selectedRecords);
   return {
     analysisId: rec.analysisId,
     date: rec.createdAt,
     mealType: rec.mealType,
     imageUrl: rec.imageUrl,
     dishName: resolved.recognizedName,
-    matchedDish: resolved.matchedDish,
+    matchedCount: resolved.matchedCount,
+    totalCount: resolved.totalCount,
+    ingredientText: resolved.ingredients.map((i) => i.name).join('、'),
     textureSummary: resolved.summary,
   };
 }

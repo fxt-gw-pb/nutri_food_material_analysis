@@ -25,9 +25,12 @@
       </view>
       <view class="record-stats">
         <text class="tag">{{item.mealTypeText}}</text>
-        <text class="sub">{{item.matchedDish ? '匹配 ' + item.matchedDish : '未匹配到菜品'}}</text>
+        <text class="sub">{{item.totalCount ? '食材 ' + item.ingredientText : '未识别出食材'}}</text>
       </view>
-      <view class="record-texture">整体 <text class="record-texture-value">{{item.textureSummary}}</text></view>
+      <view class="record-texture">
+        整体 <text class="record-texture-value">{{item.textureSummary}}</text>
+        <text class="muted" wx:if="{{item.totalCount}}"> · 匹配 {{item.matchedCount}}/{{item.totalCount}}</text>
+      </view>
     </view>
   </view>
 

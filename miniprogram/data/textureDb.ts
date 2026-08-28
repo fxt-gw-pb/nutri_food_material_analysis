@@ -1,14 +1,25 @@
 // ============================================================================
 // 内置质构数据库（只读）。
 //
-// 数据来源：《500道菜肴质构数据整合.xlsx》——每条记录是「某道菜的某种原食材」
-// 在一次 TPA 全质构测试中的结果。原始表格由 scripts/build-texture-db.py 编译成
-// textureDb.data.ts（紧凑元组），本文件负责把元组还原成带字段名的对象，并建立索引。
+// 数据来源：《500道菜肴质构数据_切割测试_下压测试分类.xlsx》——每条记录是
+// 「某道菜里的某种食材」在一次 TPA 全质构测试中的结果，并区分切割 / 下压两种测试模式。
+// 原始表格由 scripts/build-texture-db.py 编译成 textureDb.data.ts（紧凑元组），
+// 本文件负责把元组还原成带字段名的对象，并建立索引。
+//
+// 索引有两套：
+//   byDish       —— 按菜名，用于「识别出的菜名恰好在库里」时直接取整道菜的数据；
+//   byIngredient —— 按归一化食材名，用于逐食材匹配（本小程序的主路径）。
 //
 // 数据库随小程序包一起下发，匹配全部在本地完成：换菜、看备选都不需要联网。
 // ============================================================================
 
-import { TEXTURE_CATEGORIES, TEXTURE_ROWS, TextureRow } from './textureDb.data';
+import {
+  TEXTURE_CATEGORIES,
+  TEXTURE_TEST_MODES,
+  TEXTURE_ROWS,
+  TextureRow,
+} from './textureDb.data';
+import { normalize } from '../utils/similarity';
 
 /** 一条 TPA 测试的九项质构指标（原表缺测时为 null） */
 export interface TextureMetrics {
@@ -40,8 +51,10 @@ export interface TextureRecord {
   category: string;
   /** 菜名 */
   dish: string;
-  /** 原食材名，如 豆腐丝 / 排骨；整道菜只测一种时等于菜名 */
+  /** 食材名，如 豆腐丝 / 排骨；整道菜只测一种时等于菜名 */
   ingredient: string;
+  /** TPA 测试模式：切割测试 / 下压测试（同一食材可能两种都测过） */
+  testMode: string;
   /** 烹饪方式，如 煮 / 蒸 / 红烧；原表未标注时为空串 */
   method: string;
   /** 烹饪时间（分钟），0 表示原表未标注 */
@@ -57,19 +70,20 @@ function toRecord(row: TextureRow, index: number): TextureRecord {
     category: TEXTURE_CATEGORIES[row[0]] || '',
     dish: row[1],
     ingredient: row[2],
+    testMode: TEXTURE_TEST_MODES[row[5]] || '',
     method: row[3],
     minutes: row[4],
-    source: row[14],
+    source: row[15],
     metrics: {
-      heightMm: row[5],
-      hardness: row[6],
-      fracturability: row[7],
-      adhesiveness: row[8],
-      springiness: row[9],
-      chewiness: row[10],
-      gumminess: row[11],
-      cohesiveness: row[12],
-      resilience: row[13],
+      heightMm: row[6],
+      hardness: row[7],
+      fracturability: row[8],
+      adhesiveness: row[9],
+      springiness: row[10],
+      chewiness: row[11],
+      gumminess: row[12],
+      cohesiveness: row[13],
+      resilience: row[14],
     },
   };
 }
@@ -79,16 +93,20 @@ function toRecord(row: TextureRow, index: number): TextureRecord {
 let cache: {
   records: TextureRecord[];
   byDish: Record<string, TextureRecord[]>;
+  byIngredient: Record<string, TextureRecord[]>;
   byId: Record<string, TextureRecord>;
   dishNames: string[];
+  ingredientNames: string[];
 } | null = null;
 
 function ensure() {
   if (cache) return cache;
   const records = TEXTURE_ROWS.map(toRecord);
   const byDish: Record<string, TextureRecord[]> = {};
+  const byIngredient: Record<string, TextureRecord[]> = {};
   const byId: Record<string, TextureRecord> = {};
   const dishNames: string[] = [];
+  const ingredientNames: string[] = [];
   records.forEach((rec) => {
     byId[rec.id] = rec;
     if (byDish[rec.dish]) {
@@ -97,8 +115,16 @@ function ensure() {
       byDish[rec.dish] = [rec];
       dishNames.push(rec.dish);
     }
+    // 食材索引的键用归一化形，这样「土豆 」「土豆」落进同一桶。
+    const key = normalize(rec.ingredient);
+    if (byIngredient[key]) {
+      byIngredient[key].push(rec);
+    } else {
+      byIngredient[key] = [rec];
+      ingredientNames.push(rec.ingredient);
+    }
   });
-  cache = { records, byDish, byId, dishNames };
+  cache = { records, byDish, byIngredient, byId, dishNames, ingredientNames };
   return cache;
 }
 
@@ -112,9 +138,19 @@ export function allDishNames(): string[] {
   return ensure().dishNames;
 }
 
-/** 某道菜的全部记录（同一道菜可能有多种食材、多个烹饪时长） */
+/** 数据库中出现过的全部食材名（每种只出现一次，取首次出现的写法） */
+export function allIngredientNames(): string[] {
+  return ensure().ingredientNames;
+}
+
+/** 某道菜的全部记录（同一道菜可能有多种食材、多个烹饪时长、两种测试模式） */
 export function recordsOfDish(dish: string): TextureRecord[] {
   return ensure().byDish[dish] || [];
+}
+
+/** 某种食材的全部记录（跨菜；名字按归一化匹配） */
+export function recordsOfIngredient(ingredient: string): TextureRecord[] {
+  return ensure().byIngredient[normalize(ingredient)] || [];
 }
 
 export function findRecordById(id: string): TextureRecord | undefined {

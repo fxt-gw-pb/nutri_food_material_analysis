@@ -1,5 +1,5 @@
 <view class="container">
-  <view class="estimate-banner">质构数据为同类菜肴实测参考值</view>
+  <view class="estimate-banner">质构数据为同类食材实测参考值</view>
 
   <view class="card meal-head">
     <image wx:if="{{imageUrl}}" class="meal-img" src="{{imageUrl}}" mode="aspectFill" />
@@ -11,56 +11,61 @@
     </view>
   </view>
 
-  <view class="card dish">
+  <view class="card">
     <view class="dish-head">
-      <view class="title-md">{{matched ? matchedDish : '未匹配到菜品'}}</view>
-      <view class="tag match-tag">{{matchTypeText}}</view>
+      <view class="title-md">这道菜的食材</view>
+      <view class="tag match-tag">{{matchedCount}}/{{totalCount}} 已匹配</view>
     </view>
-    <view wx:if="{{edited}}" class="edited-row">
-      <text class="tag tag-edited">已手动改选</text>
+    <view wx:if="{{matchedDish}}" class="muted match-note">库中同名菜「{{matchedDish}}」</view>
+    <view wx:if="{{matchedCount > 0}}" class="summary-line">
+      <text class="summary-label muted">整体</text>
+      <text class="summary-value">{{summary}}</text>
+    </view>
+  </view>
+
+  <!-- 逐食材数据 -->
+  <view wx:for="{{ingredients}}" wx:key="name" wx:for-item="ing" class="card">
+    <view class="row-head">
+      <text class="ing-name">{{ing.name}}</text>
+      <text class="tag {{ing.matched ? 'match-tag' : 'tag-none'}}">{{ing.matchTypeText}}</text>
     </view>
 
-    <block wx:if="{{matched}}">
-      <view class="summary-line">
-        <text class="summary-label muted">整体</text>
-        <text class="summary-value">{{summary}}</text>
+    <block wx:if="{{ing.matched}}">
+      <view class="matched-from muted">
+        数据出自「{{ing.matchedDish}}」的{{ing.matchedIngredient}} · {{ing.matchedCookingText}} · {{ing.category}}
       </view>
 
-      <view class="divider"></view>
-      <view class="ing-title muted">这道菜的实测数据（{{rows.length}} 项取样）</view>
-
-      <view wx:for="{{rows}}" wx:key="source" wx:for-item="row" class="row-block">
-        <view class="row-head">
-          <text class="ing-name">{{row.wholeDish ? '整菜取样' : row.ingredient}}</text>
-          <text class="muted">{{row.cookingText}}</text>
-        </view>
+      <view wx:for="{{ing.readings}}" wx:key="testMode" wx:for-item="rd" class="reading-block">
+        <view class="reading-head muted" wx:if="{{ing.readings.length > 1}}">{{rd.testMode}}</view>
 
         <view class="metric-main">
           <text class="metric-label">软硬</text>
           <view class="hardness-track">
-            <view class="hardness-bar" style="width: {{row.hardnessPercent}}%;"></view>
+            <view class="hardness-bar" style="width: {{rd.hardnessPercent}}%;"></view>
           </view>
-          <text class="metric-value">{{row.hardnessText}}</text>
+          <text class="metric-value">{{rd.hardnessText}}</text>
         </view>
 
         <view class="metric-row">
-          <text class="metric-pill">嚼起来 {{row.chewinessText}}</text>
-          <text class="metric-pill">{{row.adhesivenessText}}</text>
+          <text class="metric-pill">嚼起来 {{rd.chewinessText}}</text>
+          <text class="metric-pill">{{rd.adhesivenessText}}</text>
         </view>
 
         <view class="metric-table">
-          <view wx:for="{{row.metrics}}" wx:key="label" wx:for-item="m" class="metric-line">
+          <view wx:for="{{rd.metrics}}" wx:key="label" wx:for-item="m" class="metric-line">
             <text class="metric-name muted">{{m.label}}</text>
             <text class="metric-num">{{m.value}}<text class="metric-unit muted"> {{m.unit}}</text></text>
           </view>
         </view>
-        <view class="muted source-line">数据出处：{{row.source}}</view>
+        <view class="muted source-line">数据出处：{{rd.source}}</view>
       </view>
     </block>
-    <view wx:else class="unmatched">未匹配到质构数据</view>
+    <view wx:else class="unmatched">库里没有足够接近的实测数据</view>
   </view>
 
+  <view wx:if="{{totalCount === 0}}" class="card unmatched">这条记录没有识别出食材</view>
+
   <view class="disclaimer">
-    质构数据来自实验室对同类菜肴样本的 TPA 全质构测试，仅供参考软硬与咀嚼难度，不等同于您这一份菜的实测值，也不构成医学建议。
+    质构数据来自实验室对同类食材样本的 TPA 全质构测试（切割 / 下压两种模式），仅供参考软硬与咀嚼难度，不等同于您这一份菜的实测值，也不构成医学建议。
   </view>
 </view>

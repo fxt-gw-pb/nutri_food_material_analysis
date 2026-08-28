@@ -47,7 +47,7 @@ interface AnyDoc {
   promptVersion?: string;
   // 旧版文档存的是 result.dishes 数组，读取时兼容取第一道。
   result?: { dish?: Dish | null; dishes?: Dish[] };
-  selectedDish?: string;
+  selectedRecords?: Record<string, string>;
   createdAt: number;
   updatedAt: number;
 }
@@ -69,7 +69,7 @@ function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
     modelName: doc.modelName,
     promptVersion: doc.promptVersion,
     dish: docDish(doc),
-    selectedDish: doc.selectedDish,
+    selectedRecords: doc.selectedRecords || {},
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
@@ -77,14 +77,16 @@ function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
 
 function docToHistoryItem(doc: AnyDoc): MealHistoryItem {
   // 质构摘要在本地按同一套匹配规则现算，保证与详情页一致。
-  const resolved = resolveMeal(docDish(doc), doc.selectedDish);
+  const resolved = resolveMeal(docDish(doc), doc.selectedRecords);
   return {
     analysisId: doc._id,
     date: doc.createdAt,
     mealType: doc.mealType,
     imageUrl: doc.imageUrl,
     dishName: resolved.recognizedName,
-    matchedDish: resolved.matchedDish,
+    matchedCount: resolved.matchedCount,
+    totalCount: resolved.totalCount,
+    ingredientText: resolved.ingredients.map((i) => i.name).join('、'),
     textureSummary: resolved.summary,
   };
 }
@@ -152,11 +154,15 @@ export function getMealAnalysisResult(analysisId: string): Promise<MealAnalysis>
     .then((res) => docToMealAnalysis(res.data as AnyDoc));
 }
 
-export function saveSelectedDish(analysisId: string, selectedDish: string): Promise<void> {
+export function saveRecordSelections(
+  analysisId: string,
+  selections: Record<string, string>,
+): Promise<void> {
+  // 整份覆盖 selectedRecords，避免用局部路径更新时删不掉已撤销的改选。
   return db()
     .collection(COLLECTION)
     .doc(analysisId)
-    .update({ data: { selectedDish, updatedAt: Date.now() } })
+    .update({ data: { selectedRecords: selections, updatedAt: Date.now() } })
     .then(() => undefined);
 }
 

@@ -21,8 +21,11 @@ export interface MealServiceApi {
   ): Promise<{ status: AnalysisStatus; progress: number }>;
   /** 读取完整分析结果 */
   getMealAnalysisResult(analysisId: string): Promise<MealAnalysis>;
-  /** 保存用户在结果页手动改选的库中菜名（传空串表示恢复自动匹配） */
-  saveSelectedDish(analysisId: string, selectedDish: string): Promise<void>;
+  /**
+   * 保存用户在结果页逐食材手动改选的质构记录（识别食材名 → 记录 id）。
+   * 整份覆盖：传空对象表示全部恢复自动匹配。
+   */
+  saveRecordSelections(analysisId: string, selections: Record<string, string>): Promise<void>;
   /** 保存餐次（早餐 / 午餐 / 加餐…） */
   saveMealType(analysisId: string, mealType: MealType): Promise<void>;
   /** 获取历史记录列表（仅已完成的分析） */
