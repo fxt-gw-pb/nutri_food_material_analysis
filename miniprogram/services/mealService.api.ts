@@ -18,6 +18,8 @@ export interface AnalysisProgress {
 export interface CreateMealAnalysisParams {
   imageUrl: string;
   imageFileId?: string;
+  /** 用户选的餐盘直径（cm），估重的尺度基准 */
+  plateDiameterCm: number;
 }
 
 export interface MealServiceApi {

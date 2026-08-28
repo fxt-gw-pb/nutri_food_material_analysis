@@ -3,11 +3,20 @@
 // 一次识别 = 一道菜 + 这道菜里的若干种食材；每种食材各自对应库里的一条实测数据。
 // 页面拿到的就是一个食材列表，逐条展示软硬 / 咀嚼 / 黏牙与九项完整指标。
 //
-// 匹配结果不落库：每次打开记录都用 services/textureMatch.ts 现算一遍（同样的
-// 输入必然得到同样的输出），只有用户手动改过的那几种食材（selectedRecords）
-// 才存进记录里覆盖。好处是质构库升级后，老记录也会自动用上新的匹配结果。
+// 匹配结果与估重都不落库：每次打开记录都现算一遍（同样的输入必然得到同样的
+// 输出），只有用户手动改过的那几种食材（selectedRecords）才存进记录里覆盖。
+// 好处是质构库或估重算法升级后，老记录也会自动用上新结果。
+//
+// 估重需要餐盘直径（拍照时用户选的，存在记录里），换算逻辑见 utils/weight.ts。
 
-import { Dish } from '../types/index';
+import { ConfidenceLevel, Dish } from '../types/index';
+import {
+  DEFAULT_PLATE_DIAMETER,
+  WeightEstimate,
+  estimateWeight,
+  weightRangeText,
+  weightText,
+} from './weight';
 import {
   IngredientMatchType,
   RecordCandidate,
@@ -65,6 +74,17 @@ export interface IngredientRow {
   readings: TextureReading[];
   /** 备选记录，供用户改选 */
   candidates: RecordCandidate[];
+
+  /** ---- 估重 ---- */
+  /** 估算重量（整数 g），估不出为 0 */
+  grams: number;
+  /** 「约 120 g」 */
+  weightText: string;
+  /** 「85–155 g」 */
+  weightRangeText: string;
+  /** 这个数是怎么算出来的，详情页展示 */
+  weightBasis: string;
+  weightConfidence: ConfidenceLevel;
 }
 
 /** 一次识别的完整视图 */
@@ -81,6 +101,12 @@ export interface ResolvedMeal {
   totalCount: number;
   /** 一句话摘要，如「偏软 · 好嚼」 */
   summary: string;
+  /** 估算总重（整数 g） */
+  totalG: number;
+  /** 「约 350 g」 */
+  totalWeightText: string;
+  /** 估重用的餐盘直径（cm） */
+  plateDiameterCm: number;
 }
 
 /** 用户改选：识别食材名 → 库中记录 id */
@@ -113,6 +139,9 @@ const EMPTY: ResolvedMeal = {
   matchedCount: 0,
   totalCount: 0,
   summary: '未匹配到质构数据',
+  totalG: 0,
+  totalWeightText: '',
+  plateDiameterCm: DEFAULT_PLATE_DIAMETER,
 };
 
 /** 一组记录的整体质构摘要，如「偏软 · 好嚼」 */
@@ -129,10 +158,20 @@ function summarize(records: TextureRecord[]): string {
 }
 
 /** 识别结果 + 用户改选 → 页面视图 */
-export function resolveMeal(dish: Dish | null, selections?: RecordSelections): ResolvedMeal {
+export function resolveMeal(
+  dish: Dish | null,
+  selections?: RecordSelections,
+  plateDiameterCm?: number,
+): ResolvedMeal {
   if (!dish) {
     return { ...EMPTY };
   }
+  const plate = plateDiameterCm && plateDiameterCm > 0 ? plateDiameterCm : DEFAULT_PLATE_DIAMETER;
+  // 识别出的几何量按食材名索引，匹配结果里只带了名字。
+  const geomByName: Record<string, (typeof dish.ingredients)[number]> = {};
+  dish.ingredients.forEach((ing) => {
+    geomByName[ing.name] = ing;
+  });
   const match = matchMeal({
     dishName: dish.dishName,
     cookingMethod: dish.cookingMethod,
@@ -140,6 +179,7 @@ export function resolveMeal(dish: Dish | null, selections?: RecordSelections): R
   });
   const picked = selections || {};
   const primaries: TextureRecord[] = [];
+  let totalG = 0;
 
   const ingredients: IngredientRow[] = match.ingredients.map((im) => {
     const override = picked[im.query];
@@ -154,6 +194,22 @@ export function resolveMeal(dish: Dish | null, selections?: RecordSelections): R
           .sort((a, b) => (a.testMode === '切割测试' ? -1 : b.testMode === '切割测试' ? 1 : 0))
           .map(toReading)
       : [];
+
+    // 估重与质构匹配相互独立：即使库里没有这种食材的质构数据，重量照样能估出来。
+    // 密度优先按食材名判断，匹配上了就再拿库里的菜品类别兜底。
+    const geom = geomByName[im.query];
+    const weight: WeightEstimate = estimateWeight(
+      {
+        name: im.query,
+        category: rec ? rec.category : undefined,
+        areaRatio: geom ? geom.areaRatio : undefined,
+        heightCm: geom ? geom.heightCm : undefined,
+        grams: geom ? geom.estimatedG : undefined,
+        confidence: geom ? geom.weightConfidence : dish.weightConfidence,
+      },
+      plate,
+    );
+    totalG += weight.grams;
 
     const matchType: IngredientMatchType = rec ? (edited ? 'exact' : im.matchType) : 'none';
     return {
@@ -171,6 +227,11 @@ export function resolveMeal(dish: Dish | null, selections?: RecordSelections): R
       reason: edited ? `已改选为「${rec!.dish}」里的「${rec!.ingredient}」` : im.reason,
       readings,
       candidates: im.candidates,
+      grams: weight.grams,
+      weightText: weightText(weight),
+      weightRangeText: weightRangeText(weight),
+      weightBasis: weight.basis,
+      weightConfidence: weight.confidence,
     };
   });
 
@@ -182,5 +243,8 @@ export function resolveMeal(dish: Dish | null, selections?: RecordSelections): R
     matchedCount: ingredients.filter((i) => i.matched).length,
     totalCount: ingredients.length,
     summary: summarize(primaries),
+    totalG,
+    totalWeightText: totalG ? `约 ${totalG} g` : '',
+    plateDiameterCm: plate,
   };
 }

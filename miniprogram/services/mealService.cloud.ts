@@ -41,6 +41,8 @@ interface AnyDoc {
   _id: string;
   imageFileId?: string;
   imageUrl: string;
+  /** 拍照时选的餐盘直径（cm），估重的尺度基准 */
+  plateDiameterCm?: number;
   status: AnalysisStatus;
   mealType?: MealType;
   modelName?: string;
@@ -72,6 +74,7 @@ function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
     promptVersion: doc.promptVersion,
     dish: docDish(doc),
     selectedRecords: doc.selectedRecords || {},
+    plateDiameterCm: doc.plateDiameterCm,
     errorStage: doc.errorStage,
     errorMessage: doc.errorMessage,
     createdAt: doc.createdAt,
@@ -81,7 +84,7 @@ function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
 
 function docToHistoryItem(doc: AnyDoc): MealHistoryItem {
   // 质构摘要在本地按同一套匹配规则现算，保证与详情页一致。
-  const resolved = resolveMeal(docDish(doc), doc.selectedRecords);
+  const resolved = resolveMeal(docDish(doc), doc.selectedRecords, doc.plateDiameterCm);
   return {
     analysisId: doc._id,
     date: doc.createdAt,
@@ -92,6 +95,7 @@ function docToHistoryItem(doc: AnyDoc): MealHistoryItem {
     totalCount: resolved.totalCount,
     ingredientText: resolved.ingredients.map((i) => i.name).join('、'),
     textureSummary: resolved.summary,
+    totalG: resolved.totalG,
   };
 }
 
@@ -117,6 +121,7 @@ export function createMealAnalysis(
         action: 'create',
         imageFileId: params.imageFileId,
         imageUrl: params.imageUrl,
+        plateDiameterCm: params.plateDiameterCm,
       },
     })
     .then((res) => {

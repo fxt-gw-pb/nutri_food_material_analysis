@@ -1,6 +1,6 @@
 // 云函数 analyzeMeal —— 菜品识别（千问 Qwen-VL），单段异步。
 //
-// 本版本只做「看图说出这道菜的菜名 + 烹饪方式 + 全部食材」，不估算任何重量。
+// 本版本做「看图说出这道菜的菜名 + 烹饪方式 + 全部食材 + 每种食材的估重几何量」。
 // 一次识别只出一道菜——图里有多样菜时挑最主要的那一道——但要把这道菜里
 // **能分辨的每一种食材都列全**，因为小程序是逐食材去质构库里取数据的：
 // 少列一种食材，用户就少看到一条实测数据。
@@ -32,7 +32,7 @@ const COLLECTION = 'meal_records';
 // DashScope OpenAI 兼容模式端点
 const DASHSCOPE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
 const MODEL = 'qwen-vl-max'; // 可换 qwen-vl-plus（更省）或 -latest 变体
-const PROMPT_VERSION = 'qwen-dish-ingredients-v4';
+const PROMPT_VERSION = 'qwen-dish-ingredients-weight-v5';
 
 exports.main = async (event) => {
   // action='ping'：不碰数据库也不碰图片，只用一次最小的文本请求验证
@@ -90,6 +90,8 @@ async function createAnalysis(event) {
       _openid: OPENID, // 显式写入，使「仅创建者可读写」规则放行该用户读取
       imageFileId: event.imageFileId || '',
       imageUrl: event.imageUrl || '',
+      // 估重的尺度基准。没传就按 26cm 家用菜盘兜底，否则整条估重链路无从下手。
+      plateDiameterCm: Number(event.plateDiameterCm) > 0 ? Number(event.plateDiameterCm) : 26,
       status: 'pending',
       modelName: MODEL,
       promptVersion: PROMPT_VERSION,
@@ -124,7 +126,8 @@ async function processAnalysis(analysisId) {
 
     stage = '调用千问识别';
     await setStatus(analysisId, 'recognizing');
-    const dish = await callQwen(imageUrl);
+    const plateDiameterCm = Number(doc.plateDiameterCm) > 0 ? Number(doc.plateDiameterCm) : 26;
+    const dish = await callQwen(imageUrl, plateDiameterCm);
 
     stage = '写回识别结果';
     await db.collection(COLLECTION).doc(analysisId).update({
@@ -179,7 +182,7 @@ async function resolveImageUrl(fileId) {
 }
 
 // ---- 千问调用与解析 ----------------------------------------------------------
-async function callQwen(imageUrl) {
+async function callQwen(imageUrl, plateDiameterCm) {
   const apiKey = process.env.DASHSCOPE_API_KEY;
   if (!apiKey) throw new Error('未配置 DASHSCOPE_API_KEY 环境变量');
 
@@ -191,7 +194,7 @@ async function callQwen(imageUrl) {
         role: 'user',
         content: [
           { type: 'image_url', image_url: { url: imageUrl } },
-          { type: 'text', text: USER_PROMPT },
+          { type: 'text', text: userPrompt(plateDiameterCm) },
         ],
       },
     ],
@@ -259,31 +262,52 @@ function postJson(url, body, headers) {
 }
 
 const SYSTEM_PROMPT =
-  '你是专业的中餐菜品识别助手。根据照片说出【一道】菜的菜名、整道菜的烹饪方式，' +
-  '以及这道菜里**所有**可分辨的食材及其各自的烹饪方式。不需要估计重量或份量。' +
+  '你是专业的中餐菜品识别助手，同时擅长看图估计食物的份量。' +
+  '根据照片说出【一道】菜的菜名、整道菜的烹饪方式、这道菜里**所有**可分辨的食材，' +
+  '以及每种食材的份量几何量。' +
   '下游会拿每一种食材单独去查实测质构数据，因此食材要尽量列全、不要合并成一个笼统的名字。' +
   '只输出 JSON，不要任何解释文字或 markdown 代码块。';
 
-const USER_PROMPT = [
-  '识别照片里最主要的那一道菜（只出一道），并把这道菜里的食材列全。',
-  '严格按以下 JSON 结构输出（字段名与类型完全一致）：',
-  '{"dish":{"dishName":"string","cookingMethod":"string",' +
-    '"recognitionConfidence":"high|medium|low",' +
-    '"ingredients":[{"name":"string","cookingMethod":"string"}]}}',
-  '约束：',
-  '- 图里出现多样菜时，只输出占比最大、最像「主菜」的那一道，不要输出多道；',
-  '- dishName 用最常见的中文标准菜名（如 大煮干丝 / 清蒸石斑鱼 / 红烧肉），不要加形容词或份量；',
-  '- cookingMethod 用单个简短中文词：煮/炖/蒸/炒/炸/煎/烤/焖/烧/卤/凉拌/白灼/爆炒/红烧/清蒸 等；',
-  '- ingredients 要列出这道菜里**每一种**看得见或按这道菜的常规做法必然含有的食材，' +
-    '通常 2–6 种，最多 10 种；宁可多列一种，也不要漏掉主料或配菜；',
-  '- name 用食材本名并保留刀工形态，如 豆腐丝 / 火腿丝 / 带皮五花肉 / 土豆丝 / 白菜帮；' +
-    '不要用「蔬菜」「肉」这种笼统词，也不要写成「土豆和青椒」这种复合名——一种食材一个条目；',
-  '- 葱、姜、蒜、香菜、干辣椒、花椒等只起调味作用的配料不要列入；',
-  '- 每种食材的 cookingMethod 写它在这道菜里的受热方式（同一道菜里不同食材可以不同，' +
-    '如回锅肉里五花肉是「炒」而蒜苗也是「炒」；凉拌菜里生食的写「凉拌」）；',
-  '- recognitionConfidence 只能取 "high"/"medium"/"low"；',
-  '- 若图中没有可识别的食物，输出 {"dish":null}。',
-].join('\n');
+/**
+ * 用户提示词。餐盘直径是整张图里唯一已知的真实长度，必须写进 prompt——
+ * 没有它，模型对「几克」只能瞎猜（同一盘菜拍近拍远像素面积能差几倍）。
+ * 我们要的是模型**看图量尺寸**（占了盘子多大一片、堆了多厚），
+ * 克数由小程序端按体积 × 堆积密度自己算（见 miniprogram/utils/weight.ts）。
+ */
+function userPrompt(plateDiameterCm) {
+  return [
+    `照片里这个餐盘的实际直径是 ${plateDiameterCm} 厘米，请以它作为唯一的尺寸基准。`,
+    '识别照片里最主要的那一道菜（只出一道），把这道菜里的食材列全，并估计每种食材的份量。',
+    '严格按以下 JSON 结构输出（字段名与类型完全一致）：',
+    '{"dish":{"dishName":"string","cookingMethod":"string",' +
+      '"recognitionConfidence":"high|medium|low","weightConfidence":"high|medium|low",' +
+      '"ingredients":[{"name":"string","cookingMethod":"string",' +
+      '"areaRatio":number,"heightCm":number,"estimatedG":number}]}}',
+    '约束：',
+    '- 图里出现多样菜时，只输出占比最大、最像「主菜」的那一道，不要输出多道；',
+    '- dishName 用最常见的中文标准菜名（如 大煮干丝 / 清蒸石斑鱼 / 红烧肉），不要加形容词或份量；',
+    '- cookingMethod 用单个简短中文词：煮/炖/蒸/炒/炸/煎/烤/焖/烧/卤/凉拌/白灼/爆炒/红烧/清蒸 等；',
+    '- ingredients 要列出这道菜里**每一种**看得见或按这道菜的常规做法必然含有的食材，' +
+      '通常 2–6 种，最多 10 种；宁可多列一种，也不要漏掉主料或配菜；',
+    '- name 用食材本名并保留刀工形态，如 豆腐丝 / 火腿丝 / 带皮五花肉 / 土豆丝 / 白菜帮；' +
+      '不要用「蔬菜」「肉」这种笼统词，也不要写成「土豆和青椒」这种复合名——一种食材一个条目；',
+    '- 葱、姜、蒜、香菜、干辣椒、花椒等只起调味作用的配料不要列入；',
+    '- 每种食材的 cookingMethod 写它在这道菜里的受热方式；',
+    '',
+    '份量三个字段怎么估（这部分很重要，请认真看图测量）：',
+    `- areaRatio：该食材在**盘面**上占据的面积比例，0–1 的小数。以直径 ${plateDiameterCm}cm 的盘面为分母，` +
+      '不是以整张照片为分母。所有食材的 areaRatio 相加应当接近盘中食物的总覆盖率，一般在 0.3–0.9 之间，' +
+      '绝不应超过 1；食材互相堆叠遮挡时，按它**露出来的**面积算；',
+    '- heightCm：该食材在盘上的平均堆叠厚度，单位厘米。可参照常识：一片肉约 0.5–1cm，' +
+      '一层青菜堆起来约 1–3cm，一块红烧肉约 2–3cm，整条鱼约 3–5cm，汤汁约 0.5–1cm；',
+    '- estimatedG：你直接凭经验估的克数（整数）。这个值只作交叉校验，' +
+      '所以请**独立**给出，不要用 areaRatio 和 heightCm 反推；',
+    '- weightConfidence 是你对整体份量估计的信心；俯拍清晰、餐盘完整入镜给 high，' +
+      '斜拍、遮挡多、看不清厚度给 low；',
+    '- recognitionConfidence 只能取 "high"/"medium"/"low"；',
+    '- 若图中没有可识别的食物，输出 {"dish":null}。',
+  ].join('\n');
+}
 
 function parseDish(content) {
   if (!content) throw new Error('千问返回空内容');
@@ -310,15 +334,37 @@ function level(v) {
   return LEVELS.indexOf(v) >= 0 ? v : 'medium';
 }
 
+/** 数值兜底：非法值归零，并夹到 [lo, hi] */
+function num(v, lo, hi) {
+  const n = Number(v);
+  if (!isFinite(n) || n <= 0) return 0;
+  return Math.min(hi, Math.max(lo, n));
+}
+
+/** areaRatio 归一到 0–1。模型有时会写成百分数（35 表示 35%），这里顺手换算回来 */
+function ratio(v) {
+  const n = Number(v);
+  if (!isFinite(n) || n <= 0) return 0;
+  if (n > 1 && n <= 100) return n / 100;
+  return Math.min(1, n);
+}
+
 function normalizeDish(d) {
   const dishName = String((d && d.dishName) || '未知菜品').trim();
   const cookingMethod = String((d && d.cookingMethod) || '').trim();
+  const weightConfidence = level(d && d.weightConfidence);
   const rawIngredients = Array.isArray(d && d.ingredients) ? d.ingredients : [];
   const seen = Object.create(null);
   const ingredients = rawIngredients
     .map((ing) => ({
       name: String((ing && ing.name) || '').trim(),
       cookingMethod: String((ing && ing.cookingMethod) || cookingMethod).trim(),
+      // 几何量在这里就夹到合理区间：模型偶尔会把 areaRatio 写成百分数（如 35），
+      // 或给出离谱的厚度，放任它传下去会让估重差一个量级。
+      areaRatio: ratio(ing && ing.areaRatio),
+      heightCm: num(ing && ing.heightCm, 0, 20),
+      estimatedG: num(ing && ing.estimatedG, 0, 3000),
+      weightConfidence: weightConfidence,
     }))
     .filter((ing) => {
       // 模型偶尔会把同一种食材列两遍；这里去重，避免前端出现两张一模一样的卡片。
@@ -332,6 +378,7 @@ function normalizeDish(d) {
     dishName,
     cookingMethod,
     recognitionConfidence: level(d && d.recognitionConfidence),
+    weightConfidence,
     // 模型没拆出食材时，用菜名本身兜底，保证前端至少能做一次食材匹配。
     ingredients: ingredients.length ? ingredients : [{ name: dishName, cookingMethod }],
   };

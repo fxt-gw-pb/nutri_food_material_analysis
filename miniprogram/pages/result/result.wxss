@@ -248,3 +248,22 @@
   color: var(--primary-dark);
   font-size: 26rpx;
 }
+
+/* ---- 估重 ---- */
+.weight-line {
+  display: flex;
+  align-items: baseline;
+  margin-top: 12rpx;
+}
+.weight-value {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+.weight-range { font-size: 24rpx; margin-left: 6rpx; }
+.weight-basis {
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+}
+.plate-note { font-size: 24rpx; margin-left: 12rpx; }

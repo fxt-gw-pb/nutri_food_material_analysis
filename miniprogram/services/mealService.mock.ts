@@ -91,6 +91,7 @@ export function createMealAnalysis(
     analysisId: genId('meal'),
     imageFileId: params.imageFileId,
     imageUrl: params.imageUrl,
+    plateDiameterCm: params.plateDiameterCm,
     status: 'pending',
     modelName: 'qwen-vl-mock',
     promptVersion: 'mock-v0',
@@ -170,7 +171,7 @@ export function deleteMealRecord(analysisId: string): Promise<void> {
 }
 
 function toHistoryItem(rec: MealAnalysis): MealHistoryItem {
-  const resolved = resolveMeal(rec.dish, rec.selectedRecords);
+  const resolved = resolveMeal(rec.dish, rec.selectedRecords, rec.plateDiameterCm);
   return {
     analysisId: rec.analysisId,
     date: rec.createdAt,
@@ -181,5 +182,6 @@ function toHistoryItem(rec: MealAnalysis): MealHistoryItem {
     totalCount: resolved.totalCount,
     ingredientText: resolved.ingredients.map((i) => i.name).join('、'),
     textureSummary: resolved.summary,
+    totalG: resolved.totalG,
   };
 }

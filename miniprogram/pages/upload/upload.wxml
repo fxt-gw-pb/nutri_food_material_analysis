@@ -15,6 +15,32 @@
     </view>
   </view>
 
+  <!-- 餐盘直径：整张照片里唯一的真实尺度，估重全靠它 -->
+  <view class="card">
+    <view class="title-sm">餐盘直径</view>
+    <view class="muted diameter-hint">照片里没有别的参照物，估重全靠这个尺寸，选准一点更准</view>
+    <view class="chips">
+      <view
+        wx:for="{{diameterOptions}}"
+        wx:key="*this"
+        class="chip {{!useCustom && selectedDiameter === item ? 'chip-active' : ''}}"
+        data-value="{{item}}"
+        bindtap="selectDiameter"
+      >{{item}} cm</view>
+      <view class="chip {{useCustom ? 'chip-active' : ''}}" bindtap="enableCustom">自定义</view>
+    </view>
+    <view wx:if="{{useCustom}}" class="custom-input">
+      <input
+        type="digit"
+        placeholder="输入直径"
+        value="{{customDiameter}}"
+        bindinput="onCustomInput"
+        class="custom-field"
+      />
+      <text class="custom-unit">cm</text>
+    </view>
+  </view>
+
   <!-- 拍摄提示 -->
   <view class="card">
     <view class="title-sm">拍摄提示</view>
@@ -26,7 +52,8 @@
   </view>
 
   <view class="disclaimer">
-    质构数据来自实验室 TPA 全质构测试的菜肴样本，用于参考同类菜品的软硬与咀嚼难度，不等同于您这一份菜的实测值。
+    重量为按餐盘尺寸的图像估算，不等同于真实称重；质构数据来自实验室 TPA 全质构测试的菜肴样本，
+    用于参考同类菜品的软硬与咀嚼难度，不等同于您这一份菜的实测值。
   </view>
 
   <view

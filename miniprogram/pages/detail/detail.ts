@@ -15,6 +15,8 @@ Page({
     summary: '',
     matchedCount: 0,
     totalCount: 0,
+    totalWeightText: '',
+    plateDiameterCm: 0,
     /** 逐食材结果（详情页只读，九项指标全部展开） */
     ingredients: [] as IngredientRow[],
   },
@@ -27,7 +29,7 @@ Page({
     }
     getMealAnalysisResult(analysisId)
       .then((meal) => {
-        const r = resolveMeal(meal.dish, meal.selectedRecords);
+        const r = resolveMeal(meal.dish, meal.selectedRecords, meal.plateDiameterCm);
         this.setData({
           imageUrl: meal.imageUrl,
           dateText: formatDateTime(meal.createdAt),
@@ -39,6 +41,8 @@ Page({
           summary: r.summary,
           matchedCount: r.matchedCount,
           totalCount: r.totalCount,
+          totalWeightText: r.totalWeightText,
+          plateDiameterCm: r.plateDiameterCm,
           ingredients: r.ingredients,
         });
       })

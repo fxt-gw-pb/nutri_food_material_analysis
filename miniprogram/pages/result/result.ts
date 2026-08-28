@@ -39,6 +39,9 @@ Page({
     summary: '',
     matchedCount: 0,
     totalCount: 0,
+    /** 估重 */
+    totalWeightText: '',
+    plateDiameterCm: 0,
     /** 「已匹配 3/4 种食材」这样的一行 */
     matchNote: '',
 
@@ -52,6 +55,8 @@ Page({
 
   analysisId: '',
   dish: null as Dish | null,
+  /** 拍照时选的餐盘直径，估重的尺度基准 */
+  plateDiameterCm: 0,
   /** 用户逐食材的手动改选：识别食材名 → 质构记录 id */
   selections: {} as RecordSelections,
   /** 搜索防抖：连续输入时不必每敲一个字就全库搜一遍 */
@@ -67,6 +72,7 @@ Page({
       .then((meal) => {
         this.dish = meal.dish;
         this.selections = meal.selectedRecords || {};
+        this.plateDiameterCm = meal.plateDiameterCm || 0;
         const mealType = meal.mealType || suggestMealType();
         this.setData({
           imageUrl: meal.imageUrl,
@@ -89,7 +95,7 @@ Page({
 
   /** 重新算一遍匹配并刷新页面（改选后也走这里） */
   refresh() {
-    const r = resolveMeal(this.dish, this.selections);
+    const r = resolveMeal(this.dish, this.selections, this.plateDiameterCm);
     const pickerIndex = this.data.pickerIndex;
     const keyword = this.data.keyword.trim();
     // 展开的那一行如果在搜索，用搜索结果替掉它的备选列表。
@@ -116,6 +122,8 @@ Page({
       matchedCount: r.matchedCount,
       totalCount: r.totalCount,
       matchNote: this.buildMatchNote(r.matchedDish, r.matchedCount, r.totalCount),
+      totalWeightText: r.totalWeightText,
+      plateDiameterCm: r.plateDiameterCm,
       ingredients,
     });
   },

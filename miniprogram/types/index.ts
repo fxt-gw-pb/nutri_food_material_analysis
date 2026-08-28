@@ -1,8 +1,8 @@
 // 核心数据类型定义。
 // 这些类型同时约束前端展示、mock service 和 CloudBase 云函数的返回结构。
 //
-// 本版本的主线是「拍照 → 识别菜品 → 拆出全部食材 → 每种食材各自匹配质构数据」，
-// 不估算任何重量。
+// 本版本的主线是「拍照 → 识别菜品 → 拆出全部食材 → 每种食材各自匹配质构数据 + 估算重量」。
+// 重量估算以用户拍照时选的**餐盘直径**为唯一真实尺度，换算逻辑在 utils/weight.ts。
 
 /** 可信度等级（统一使用 高 / 中 / 低 三档） */
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
@@ -32,6 +32,18 @@ export interface RecognizedIngredient {
   name: string;
   /** 该食材的烹饪方式（如 煮 / 蒸 / 炒），模型给不出时为空 */
   cookingMethod?: string;
+  /**
+   * 以下是估重用的几何量。模型对「几克」没有可靠直觉，但对「占了盘子多大一片、
+   * 堆了多厚」判断得靠谱得多——配上已知的餐盘直径就能换算出体积。见 utils/weight.ts。
+   */
+  /** 该食材占盘面的面积比例 0–1 */
+  areaRatio?: number;
+  /** 平均堆叠厚度 cm */
+  heightCm?: number;
+  /** 模型直接给的克数，仅作交叉校验 */
+  estimatedG?: number;
+  /** 模型对自己估重的信心 */
+  weightConfidence?: ConfidenceLevel;
 }
 
 /** 视觉模型识别出的那道菜（一次识别只出一道菜，不含任何重量信息） */
@@ -41,6 +53,8 @@ export interface Dish {
   cookingMethod: string;
   /** 菜品识别可信度 */
   recognitionConfidence: ConfidenceLevel;
+  /** 模型对整体份量估计的信心 */
+  weightConfidence?: ConfidenceLevel;
   /** 这道菜里识别出的**全部**食材；每一种都会各自去质构库里匹配并展示 */
   ingredients: RecognizedIngredient[];
 }
@@ -56,6 +70,8 @@ export interface MealAnalysis {
   imageFileId?: string;
   /** 可访问的图片地址；mock 阶段为本地临时路径 */
   imageUrl: string;
+  /** 拍照时用户选的餐盘直径（cm）——估重的唯一真实尺度 */
+  plateDiameterCm?: number;
   status: AnalysisStatus;
   /** 餐次（早餐 / 午餐 / 加餐…），由结果页选择 */
   mealType?: MealType;
@@ -98,4 +114,6 @@ export interface MealHistoryItem {
   ingredientText: string;
   /** 质构摘要，如 "偏软 · 好嚼" */
   textureSummary: string;
+  /** 整道菜的估算总重（整数 g），估不出时为 0 */
+  totalG: number;
 }
