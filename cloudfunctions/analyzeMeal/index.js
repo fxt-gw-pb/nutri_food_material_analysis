@@ -31,11 +31,51 @@ const MODEL = 'qwen-vl-max'; // 可换 qwen-vl-plus（更省）或 -latest 变�
 const PROMPT_VERSION = 'qwen-dish-ingredients-v4';
 
 exports.main = async (event) => {
+  // action='ping'：不碰数据库也不碰图片，只用一次最小的文本请求验证
+  // DASHSCOPE_API_KEY 配没配对、云函数出不出得了公网。
+  // 在云开发控制台「云端测试」里传 {"action":"ping"} 即可，用来把
+  // 「Key 的问题」和「图片的问题」一刀切开。
+  if (event.action === 'ping') {
+    return ping();
+  }
   if (event.action === 'process') {
     return processAnalysis(event.analysisId);
   }
   return createAnalysis(event);
 };
+
+async function ping() {
+  const apiKey = process.env.DASHSCOPE_API_KEY;
+  if (!apiKey) {
+    return { ok: false, stage: '读取环境变量', error: '未配置 DASHSCOPE_API_KEY 环境变量' };
+  }
+  try {
+    const data = await postJson(
+      DASHSCOPE_URL,
+      { model: MODEL, messages: [{ role: 'user', content: '只回复两个字：通了' }] },
+      { Authorization: `Bearer ${apiKey}` },
+    );
+    const reply =
+      data && data.choices && data.choices[0] && data.choices[0].message
+        ? data.choices[0].message.content
+        : '';
+    return {
+      ok: true,
+      model: MODEL,
+      keyPrefix: apiKey.slice(0, 8) + '…',
+      keyLength: apiKey.length,
+      reply,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      stage: '调用千问接口',
+      keyPrefix: apiKey.slice(0, 8) + '…',
+      keyLength: apiKey.length,
+      error: String((err && err.message) || err),
+    };
+  }
+}
 
 // ---- action: create ----------------------------------------------------------
 async function createAnalysis(event) {
@@ -51,6 +91,8 @@ async function createAnalysis(event) {
       promptVersion: PROMPT_VERSION,
       result: { dish: null },
       selectedRecords: {},
+      errorStage: '',
+      errorMessage: '',
       createdAt: now,
       updatedAt: now,
     },
@@ -63,22 +105,51 @@ async function processAnalysis(analysisId) {
   if (!analysisId) {
     return { ok: false, error: 'missing analysisId' };
   }
+  // 记录当前走到哪一步：失败时连同错误一起写库，前端就能显示「卡在哪一步、为什么」，
+  // 而不是笼统的一句「识别失败」。排查线上问题全靠这两个字段。
+  let stage = '初始化';
   try {
+    stage = '更新任务状态';
     await setStatus(analysisId, 'preprocessing');
+
+    stage = '读取任务记录';
     const doc = (await db.collection(COLLECTION).doc(analysisId).get()).data;
+
+    stage = '获取图片临时地址';
     const imageUrl = await resolveImageUrl(doc.imageFileId);
 
+    stage = '调用千问识别';
     await setStatus(analysisId, 'recognizing');
     const dish = await callQwen(imageUrl);
 
+    stage = '写回识别结果';
     await db.collection(COLLECTION).doc(analysisId).update({
-      data: { 'result.dish': dish, status: 'completed', updatedAt: Date.now() },
+      data: {
+        'result.dish': dish,
+        status: 'completed',
+        errorStage: '',
+        errorMessage: '',
+        updatedAt: Date.now(),
+      },
     });
     return { ok: true };
   } catch (err) {
-    console.error('[analyzeMeal] process failed', err);
-    await setStatus(analysisId, 'failed').catch(() => {});
-    return { ok: false, error: String((err && err.message) || err) };
+    const message = String((err && err.message) || err);
+    console.error(`[analyzeMeal] process failed at 【${stage}】`, err);
+    await db
+      .collection(COLLECTION)
+      .doc(analysisId)
+      .update({
+        data: {
+          status: 'failed',
+          errorStage: stage,
+          // 截断：错误里可能带一整段接口响应，没必要整篇存进数据库。
+          errorMessage: message.slice(0, 500),
+          updatedAt: Date.now(),
+        },
+      })
+      .catch(() => {});
+    return { ok: false, stage, error: message };
   }
 }
 
@@ -88,11 +159,15 @@ function setStatus(id, status) {
 
 // 把云存储 fileID 换成千问可拉取的临时 HTTP 地址。
 async function resolveImageUrl(fileId) {
-  if (!fileId) throw new Error('缺少图片 fileId');
+  if (!fileId) throw new Error('记录里没有图片 fileId，可能上传步骤没成功');
   if (/^https?:\/\//.test(fileId)) return fileId;
   const res = await cloud.getTempFileURL({ fileList: [fileId] });
   const item = res.fileList && res.fileList[0];
-  if (!item || !item.tempFileURL) throw new Error('获取图片临时地址失败');
+  if (!item || !item.tempFileURL) {
+    // 把云存储返回的 errmsg 带出来，「文件不存在」和「没权限」是两回事。
+    const detail = item ? `${item.status} ${item.errmsg || ''}` : '无返回项';
+    throw new Error(`获取图片临时地址失败：${detail}`);
+  }
   return item.tempFileURL;
 }
 

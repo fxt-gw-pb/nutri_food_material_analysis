@@ -70,6 +70,10 @@ export interface MealAnalysis {
    * 只存被改过的那几种食材，其余仍走自动匹配。
    */
   selectedRecords?: Record<string, string>;
+  /** 失败时走到了哪一步（如「获取图片临时地址」），成功时为空 */
+  errorStage?: string;
+  /** 失败原因原文（已截断到 500 字），成功时为空 */
+  errorMessage?: string;
   createdAt: number;
   updatedAt: number;
   /** 仅 mock 阶段使用：用于模拟分析进度推进的起始时间戳 */

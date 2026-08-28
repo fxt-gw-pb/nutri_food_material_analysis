@@ -84,7 +84,7 @@ Page({
       return;
     }
     getMealAnalysisStatus(this.analysisId)
-      .then(({ status, progress }) => {
+      .then(({ status, progress, errorStage, errorMessage }) => {
         this.setData({
           statusText: STATUS_TEXT[status],
           progress: Math.round(progress * 100),
@@ -97,12 +97,18 @@ Page({
         } else if (status === 'failed') {
           this.disposed = true;
           this.clearTimer();
+          // 把云函数记下的失败阶段与原因直接显示出来。笼统的「请重新拍摄」会
+          // 让用户白白重试——Key 没配、图片取不到这类问题，重拍多少次都一样。
+          const detail = errorMessage
+            ? `${errorStage ? `【${errorStage}】` : ''}${errorMessage}`
+            : '';
           wx.showModal({
             title: '识别失败',
-            content: '请返回重新拍摄或选择图片。',
+            content: detail || '请返回重新拍摄或选择图片。',
             showCancel: false,
             success: () => wx.navigateBack(),
           });
+          console.error('[analyzing] 识别失败', errorStage, errorMessage);
         } else {
           this.scheduleNext();
         }

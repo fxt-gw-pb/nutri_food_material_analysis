@@ -13,7 +13,7 @@
 import { MealAnalysis, AnalysisStatus, MealHistoryItem, MealType, Dish } from '../types/index';
 import { resolveMeal } from '../utils/texture';
 import { CONFIG } from './config';
-import { CreateMealAnalysisParams } from './mealService.api';
+import { AnalysisProgress, CreateMealAnalysisParams } from './mealService.api';
 
 const COLLECTION = 'meal_records';
 
@@ -48,6 +48,8 @@ interface AnyDoc {
   // 旧版文档存的是 result.dishes 数组，读取时兼容取第一道。
   result?: { dish?: Dish | null; dishes?: Dish[] };
   selectedRecords?: Record<string, string>;
+  errorStage?: string;
+  errorMessage?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -70,6 +72,8 @@ function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
     promptVersion: doc.promptVersion,
     dish: docDish(doc),
     selectedRecords: doc.selectedRecords || {},
+    errorStage: doc.errorStage,
+    errorMessage: doc.errorMessage,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };
@@ -133,16 +137,19 @@ export function createMealAnalysis(
     });
 }
 
-export function getMealAnalysisStatus(
-  analysisId: string,
-): Promise<{ status: AnalysisStatus; progress: number }> {
+export function getMealAnalysisStatus(analysisId: string): Promise<AnalysisProgress> {
   return db()
     .collection(COLLECTION)
     .doc(analysisId)
     .get()
     .then((res) => {
-      const status = (res.data as AnyDoc).status;
-      return { status, progress: STATUS_PROGRESS[status] ?? 0 };
+      const doc = res.data as AnyDoc;
+      return {
+        status: doc.status,
+        progress: STATUS_PROGRESS[doc.status] ?? 0,
+        errorStage: doc.errorStage,
+        errorMessage: doc.errorMessage,
+      };
     });
 }
 

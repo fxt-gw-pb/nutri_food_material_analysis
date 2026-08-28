@@ -10,7 +10,7 @@
 // ============================================================================
 
 import { MealAnalysis, AnalysisStatus, MealHistoryItem, MealType, Dish } from '../types/index';
-import { CreateMealAnalysisParams } from './mealService.api';
+import { AnalysisProgress, CreateMealAnalysisParams } from './mealService.api';
 import { MOCK_DISHES } from '../mock/dishes';
 import { buildSeedHistory } from '../mock/history';
 import { resolveMeal } from '../utils/texture';
@@ -103,9 +103,7 @@ export function createMealAnalysis(
   return Promise.resolve({ analysisId: record.analysisId });
 }
 
-export function getMealAnalysisStatus(
-  analysisId: string,
-): Promise<{ status: AnalysisStatus; progress: number }> {
+export function getMealAnalysisStatus(analysisId: string): Promise<AnalysisProgress> {
   const rec = findRecord(analysisId);
   if (!rec) {
     return Promise.reject(new Error('analysis not found'));

@@ -5,6 +5,16 @@
 
 import { MealAnalysis, AnalysisStatus, MealHistoryItem, MealType } from '../types/index';
 
+/** 状态轮询的返回值 */
+export interface AnalysisProgress {
+  status: AnalysisStatus;
+  progress: number;
+  /** 失败时走到了哪一步 */
+  errorStage?: string;
+  /** 失败原因原文 */
+  errorMessage?: string;
+}
+
 export interface CreateMealAnalysisParams {
   imageUrl: string;
   imageFileId?: string;
@@ -15,10 +25,12 @@ export interface MealServiceApi {
   uploadMealImage(filePath: string): Promise<{ fileId: string; imageUrl: string }>;
   /** 创建一次分析任务，返回 analysisId */
   createMealAnalysis(params: CreateMealAnalysisParams): Promise<{ analysisId: string }>;
-  /** 查询分析状态与进度（0–1） */
-  getMealAnalysisStatus(
-    analysisId: string,
-  ): Promise<{ status: AnalysisStatus; progress: number }>;
+  /**
+   * 查询分析状态与进度（0–1）。
+   * status='failed' 时带上 errorStage / errorMessage，好让加载页直接显示失败原因，
+   * 而不是笼统的一句「识别失败」——线上排查全靠这两个字段。
+   */
+  getMealAnalysisStatus(analysisId: string): Promise<AnalysisProgress>;
   /** 读取完整分析结果 */
   getMealAnalysisResult(analysisId: string): Promise<MealAnalysis>;
   /**

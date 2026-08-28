@@ -27,4 +27,4 @@ export const saveMealType = impl.saveMealType;
 export const getMealHistory = impl.getMealHistory;
 export const deleteMealRecord = impl.deleteMealRecord;
 
-export type { CreateMealAnalysisParams } from './mealService.api';
+export type { CreateMealAnalysisParams, AnalysisProgress } from './mealService.api';
