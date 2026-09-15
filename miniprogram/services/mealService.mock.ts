@@ -14,6 +14,7 @@ import { AnalysisProgress, CreateMealAnalysisParams } from './mealService.api';
 import { MOCK_DISHES } from '../mock/dishes';
 import { buildSeedHistory } from '../mock/history';
 import { resolveMeal } from '../utils/texture';
+import { buildAuditSnapshot, buildConsumption, validateExcluded } from '../utils/evaluation';
 import { safeGet, safeSet } from '../utils/storage';
 
 const STORAGE_KEY = 'meal_records_v3';
@@ -41,7 +42,7 @@ function loadRecords(): MealAnalysis[] {
 }
 
 function saveRecords(list: MealAnalysis[]): void {
-  safeSet(STORAGE_KEY, list);
+  wx.setStorageSync(STORAGE_KEY, list); // 写失败必须向页面报错，不能伪装保存成功。
 }
 
 function findRecord(analysisId: string): MealAnalysis | undefined {
@@ -93,6 +94,8 @@ export function createMealAnalysis(
     imageUrl: params.imageUrl,
     plateDiameterCm: params.plateDiameterCm,
     status: 'pending',
+    evaluationStatus: 'pending',
+    excludedIngredients: [],
     modelName: 'qwen-vl-mock',
     promptVersion: 'mock-v0',
     dish: pickMockDish(),
@@ -171,7 +174,7 @@ export function deleteMealRecord(analysisId: string): Promise<void> {
 }
 
 function toHistoryItem(rec: MealAnalysis): MealHistoryItem {
-  const resolved = resolveMeal(rec.dish, rec.selectedRecords, rec.plateDiameterCm);
+  const resolved = resolveMeal(rec.dish, rec.selectedRecords, rec.plateDiameterCm, rec.excludedIngredients);
   return {
     analysisId: rec.analysisId,
     date: rec.createdAt,
@@ -183,5 +186,44 @@ function toHistoryItem(rec: MealAnalysis): MealHistoryItem {
     ingredientText: resolved.ingredients.map((i) => i.name).join('、'),
     textureSummary: resolved.summary,
     totalG: resolved.totalG,
+    evaluationStatus: rec.evaluationStatus,
+    totalConsumedG: rec.consumption?.totalConsumedG,
   };
+}
+
+export async function getPendingMealEvaluation(): Promise<MealAnalysis | null> {
+  // mock 在重新进入时也推进进度，模拟云端独立完成任务。
+  for (const meal of loadRecords().filter((r) => r.evaluationStatus === 'pending' && r.status !== 'failed')) {
+    await getMealAnalysisStatus(meal.analysisId);
+  }
+  return loadRecords().find((r) => r.evaluationStatus === 'pending' && r.status === 'completed') || null;
+}
+
+export async function saveAuditSnapshot(analysisId: string): Promise<void> {
+  const meal = await getMealAnalysisResult(analysisId);
+  meal.auditSnapshot = buildAuditSnapshot(meal);
+  upsertRecord(meal);
+}
+
+export async function saveExcludedIngredients(analysisId: string, names: string[]): Promise<void> {
+  const meal = await getMealAnalysisResult(analysisId);
+  meal.excludedIngredients = validateExcluded(meal, names);
+  const empty = resolveMeal(meal.dish, meal.selectedRecords, meal.plateDiameterCm, meal.excludedIngredients).totalCount === 0;
+  const complete = empty || meal.evaluationStatus === 'completed';
+  meal.consumption = buildConsumption(meal, meal.consumption?.percentages || {}, complete);
+  meal.evaluationStatus = complete ? 'completed' : 'pending';
+  meal.auditSnapshot = buildAuditSnapshot(meal);
+  meal.updatedAt = Date.now();
+  upsertRecord(meal);
+}
+
+export async function saveConsumptionEvaluation(analysisId: string, percentages: Record<string, number>, complete: boolean): Promise<void> {
+  const meal = await getMealAnalysisResult(analysisId);
+  if (!complete && meal.evaluationStatus === 'completed') throw new Error('这餐已评估完成，请重新打开页面');
+  if (meal.status !== 'completed') throw new Error('请等待识别完成');
+  meal.consumption = buildConsumption(meal, percentages, complete);
+  meal.evaluationStatus = complete ? 'completed' : 'pending';
+  meal.auditSnapshot = buildAuditSnapshot(meal);
+  meal.updatedAt = Date.now();
+  upsertRecord(meal);
 }

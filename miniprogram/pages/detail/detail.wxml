@@ -14,9 +14,8 @@
   <view class="card">
     <view class="dish-head">
       <view class="title-md">这道菜的食材</view>
-      <view class="tag match-tag">{{matchedCount}}/{{totalCount}} 已匹配</view>
+      <view class="tag match-tag">{{totalCount}} 种食材</view>
     </view>
-    <view wx:if="{{matchedDish}}" class="muted match-note">库中同名菜「{{matchedDish}}」</view>
     <view wx:if="{{matchedCount > 0}}" class="summary-line">
       <text class="summary-label muted">整体</text>
       <text class="summary-value">{{summary}}</text>
@@ -32,19 +31,15 @@
   <view wx:for="{{ingredients}}" wx:key="name" wx:for-item="ing" class="card">
     <view class="row-head">
       <text class="ing-name">{{ing.name}}</text>
-      <text class="tag {{ing.matched ? 'match-tag' : 'tag-none'}}">{{ing.matchTypeText}}</text>
+      <button class="delete-ingredient" size="mini" data-name="{{ing.name}}" bindtap="removeIngredient" disabled="{{busy || !loaded}}" aria-label="删除{{ing.name}}">删除</button>
     </view>
 
     <view wx:if="{{ing.grams}}" class="weight-line">
       <text class="weight-value">{{ing.weightText}}</text>
       <text class="muted weight-range">（{{ing.weightRangeText}}）</text>
     </view>
-    <view wx:if="{{ing.grams}}" class="muted weight-basis">估重依据：{{ing.weightBasis}}</view>
 
     <block wx:if="{{ing.matched}}">
-      <view class="matched-from muted">
-        数据出自「{{ing.matchedDish}}」的{{ing.matchedIngredient}} · {{ing.matchedCookingText}} · {{ing.category}}
-      </view>
 
       <view wx:for="{{ing.readings}}" wx:key="testMode" wx:for-item="rd" class="reading-block">
         <view class="reading-head muted" wx:if="{{ing.readings.length > 1}}">{{rd.testMode}}</view>
@@ -68,7 +63,6 @@
             <text class="metric-num">{{m.value}}<text class="metric-unit muted"> {{m.unit}}</text></text>
           </view>
         </view>
-        <view class="muted source-line">数据出处：{{rd.source}}</view>
       </view>
     </block>
     <view wx:else class="unmatched">库里没有足够接近的实测数据</view>
@@ -77,6 +71,10 @@
   <view wx:if="{{totalCount === 0}}" class="card unmatched">这条记录没有识别出食材</view>
 
   <view class="disclaimer">
-    重量为按餐盘直径换算的图像估算，误差通常在三成上下，不等同于真实称重；质构数据来自实验室对同类食材样本的 TPA 全质构测试（切割 / 下压两种模式），仅供参考软硬与咀嚼难度，不等同于您这一份菜的实测值，也不构成医学建议。
+    重量为图像估算，可能存在误差，不等同于真实称重；质构数据来自实验室对同类食材样本的 TPA 全质构测试（切割 / 下压两种模式），仅供参考软硬与咀嚼难度，不等同于您这一份菜的实测值，也不构成医学建议。
+  </view>
+  <view wx:if="{{totalCount > 0}}" class="evaluation-entry">
+    <button class="btn btn-primary" bindtap="goEvaluation" disabled="{{busy || !loaded}}">饭后评估</button>
+    <view class="muted evaluation-hint">{{evaluationCompleted ? '已完成 · 估算摄入 ' + totalConsumedG + ' g' : '吃完饭后，记录每种食材吃了多少'}}</view>
   </view>
 </view>

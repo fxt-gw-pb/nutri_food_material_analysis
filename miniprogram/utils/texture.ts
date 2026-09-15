@@ -3,9 +3,8 @@
 // 一次识别 = 一道菜 + 这道菜里的若干种食材；每种食材各自对应库里的一条实测数据。
 // 页面拿到的就是一个食材列表，逐条展示软硬 / 咀嚼 / 黏牙与九项完整指标。
 //
-// 匹配结果与估重都不落库：每次打开记录都现算一遍（同样的输入必然得到同样的
-// 输出），只有用户手动改过的那几种食材（selectedRecords）才存进记录里覆盖。
-// 好处是质构库或估重算法升级后，老记录也会自动用上新结果。
+// 页面每次按当前算法重算；用户改选和排除项覆盖自动结果。
+// 后台另存 auditSnapshot，供导出估重依据、匹配记录和来源，老人界面不显示这些说明。
 //
 // 估重需要餐盘直径（拍照时用户选的，存在记录里），换算逻辑见 utils/weight.ts。
 
@@ -162,6 +161,7 @@ export function resolveMeal(
   dish: Dish | null,
   selections?: RecordSelections,
   plateDiameterCm?: number,
+  excludedIngredients: string[] = [],
 ): ResolvedMeal {
   if (!dish) {
     return { ...EMPTY };
@@ -181,7 +181,7 @@ export function resolveMeal(
   const primaries: TextureRecord[] = [];
   let totalG = 0;
 
-  const ingredients: IngredientRow[] = match.ingredients.map((im) => {
+  const ingredients: IngredientRow[] = match.ingredients.filter((im) => excludedIngredients.indexOf(im.query) < 0).map((im) => {
     const override = picked[im.query];
     const recordId = override || im.recordId;
     const rec = recordId ? findRecordById(recordId) : undefined;

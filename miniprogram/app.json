@@ -5,7 +5,8 @@
     "pages/analyzing/analyzing",
     "pages/result/result",
     "pages/history/history",
-    "pages/detail/detail"
+    "pages/detail/detail",
+    "pages/evaluation/evaluation"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ffffff",

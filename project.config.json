@@ -28,7 +28,8 @@
       "ignore": [],
       "disablePlugins": [],
       "outputPath": ""
-    }
+    },
+    "minifyWXML": true
   },
   "editorSetting": {
     "tabIndent": "insertSpaces",

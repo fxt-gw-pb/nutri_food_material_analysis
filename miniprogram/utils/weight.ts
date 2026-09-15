@@ -111,13 +111,21 @@ export interface WeightInput {
   confidence?: ConfidenceLevel;
 }
 
+export const WEIGHT_ALGORITHM_VERSION = '2026-09-15-meat-half';
+
+/** 按识别食材本身校正，不能因配菜匹配到肉类菜肴就一起减半。 */
+export function meatCorrectionFactor(name: string): number {
+  if (/素肉|植物肉|人造肉|仿肉|鱼|虾|蟹|贝|螺|蛤|蛋|鸡腿菇|鸡毛菜|羊肚菌|猪肚菇|鸡枞|猴头菇|肉桂|肉豆蔻|果肉|椰肉|桂圆|龙眼/.test(name)) return 1;
+  return /猪|牛肉|牛腩|牛腱|牛筋|牛肚|牛百叶|牛舌|牛排|牛柳|牛杂|牛肝|牛心|肥牛|羊|鸡|鸭|鹅|兔|五花|里脊|腱子|梅花肉|排骨|肋排|肘|火腿|培根|香肠|腊肠|腊肉|午餐肉|肉块|肉丝|肉片|肉丁|肉末|肉沫|肉馅|肉丸|瘦肉|肥肉|红烧肉|扣肉|回锅肉/.test(name) || /肉$/.test(name) ? 0.5 : 1;
+}
+
 export interface WeightEstimate {
   /** 最终估重（整数 g）；无法估算时为 0 */
   grams: number;
   minG: number;
   maxG: number;
   confidence: ConfidenceLevel;
-  /** 用到的堆积密度，详情页展示以便解释 */
+  /** 用到的堆积密度，后台审计解释用 */
   density: number;
   /** 一句话说明这个数是怎么来的 */
   basis: string;
@@ -163,7 +171,7 @@ export function estimateWeight(input: WeightInput, plateDiameterCm: number): Wei
   const areaRatio = clamp(input.areaRatio || 0, 0, 1);
   const heightCm = clamp(input.heightCm || 0, 0, MAX_HEIGHT_CM);
   const diameter = clamp(plateDiameterCm || 0, 0, MAX_PLATE_DIAMETER);
-  const direct = input.grams && input.grams > 0 ? input.grams : 0;
+  const direct = input.grams && isFinite(input.grams) && input.grams > 0 ? input.grams : 0;
 
   let geometric = 0;
   if (diameter >= MIN_PLATE_DIAMETER && areaRatio > 0 && heightCm > 0) {
@@ -202,10 +210,12 @@ export function estimateWeight(input: WeightInput, plateDiameterCm: number): Wei
 
   grams = Math.min(grams, MAX_SINGLE_G);
   const r = RANGE_RATIO[confidence];
+  const factor = meatCorrectionFactor(input.name);
+  if (factor === 0.5) basis += '；按 0915 使用反馈，肉类估重及区间统一乘 0.5';
   return {
-    grams: roundWeight(grams),
-    minG: roundWeight(grams * (1 - r)),
-    maxG: roundWeight(grams * (1 + r)),
+    grams: roundWeight(grams) * factor,
+    minG: roundWeight(grams * (1 - r)) * factor,
+    maxG: roundWeight(grams * (1 + r)) * factor,
     confidence,
     density,
     basis,

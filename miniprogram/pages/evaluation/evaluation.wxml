@@ -1,0 +1,38 @@
+<view class="container">
+  <view wx:if="{{!loaded}}" class="card">
+    <view class="title-md">正在读取这一餐</view>
+    <button class="btn btn-secondary" bindtap="loadMeal">重新加载</button>
+  </view>
+  <block wx:else>
+    <view class="card">
+      <view class="muted">{{dateText}}</view>
+      <view class="title-lg evaluation-title">饭后评估</view>
+      <view class="title-md">{{recognizedName}}</view>
+      <view class="instructions">以拍照时的份量为准，选一选每种食材吃了多少。</view>
+      <view class="portion-help">0% 没吃 · 50% 吃了一半 · 100% 吃完了</view>
+      <view class="portion-help">添过菜可选超过 100%，最多 500%（5 倍）。</view>
+    </view>
+    <view wx:for="{{rows}}" wx:key="name" wx:for-item="row" class="card">
+      <view class="row-head">
+        <text class="ing-name">{{row.name}}</text>
+        <button class="delete-ingredient" size="mini" data-name="{{row.name}}" bindtap="removeIngredient" disabled="{{busy}}" aria-label="删除{{row.name}}">删除</button>
+      </view>
+      <view class="muted">拍照时约 {{row.grams}} g</view>
+      <view class="percent-line"><text class="percent-value">{{row.percent}}%</text><text class="confirm-status">{{row.confirmed ? '已确认' : '待确认，请滑动或点选比例'}}</text></view>
+      <slider min="0" max="500" step="1" value="{{row.percent}}" activeColor="#2fae76" block-size="28" disabled="{{busy}}" data-name="{{row.name}}" bindchange="onSliderChange" aria-label="{{row.name}}食用比例，百分之0到500" />
+      <view class="scale"><text>0%</text><text>500%</text></view>
+      <view class="presets">
+        <button wx:for="{{presets}}" wx:key="*this" wx:for-item="p" class="preset {{row.confirmed && row.percent === p ? 'selected' : ''}}" data-name="{{row.name}}" data-value="{{p}}" bindtap="choosePercent" disabled="{{busy}}">{{p}}%</button>
+      </view>
+      <view wx:if="{{row.confirmed}}" class="intake">估算摄入 {{row.consumedG}} g</view>
+    </view>
+    <view wx:if="{{rows.length === 0}}" class="card">没有需要评估的食材，可以完成这一餐。</view>
+    <view class="card evaluation-summary">
+      <view class="title-md">{{remaining ? '还有 ' + remaining + ' 种食材待确认' : '每种食材已确认'}}</view>
+      <view class="intake">已确认食材的估算摄入：{{totalConsumedG}} g</view>
+      <view class="save-status">{{saveText}}</view>
+      <button class="btn btn-primary" bindtap="completeEvaluation" loading="{{busy}}" disabled="{{busy || remaining > 0}}">完成评估</button>
+    </view>
+    <view class="disclaimer">摄入重量由图像估重和您填写的比例换算，仅供饮食记录参考。</view>
+  </block>
+</view>

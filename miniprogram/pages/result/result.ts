@@ -2,6 +2,9 @@ import {
   getMealAnalysisResult,
   saveRecordSelections,
   saveMealType,
+  saveExcludedIngredients,
+  saveAuditSnapshot,
+  saveConsumptionEvaluation,
 } from '../../services/mealService';
 import { Dish, MealType } from '../../types/index';
 import { confidenceLabel } from '../../utils/confidence';
@@ -51,9 +54,13 @@ Page({
     /** 当前展开备选面板的食材下标，-1 表示都收起 */
     pickerIndex: -1,
     keyword: '',
+    busy: false,
+    loaded: false,
+    evaluationCompleted: false,
   },
 
   analysisId: '',
+  excludedIngredients: [] as string[],
   dish: null as Dish | null,
   /** 拍照时选的餐盘直径，估重的尺度基准 */
   plateDiameterCm: 0,
@@ -68,9 +75,15 @@ Page({
       wx.showToast({ title: '缺少识别记录', icon: 'none' });
       return;
     }
+  },
+
+  onShow() {
+    if (!this.analysisId) return;
+    this.setData({ loaded: false });
     getMealAnalysisResult(this.analysisId)
-      .then((meal) => {
+      .then(async (meal) => {
         this.dish = meal.dish;
+        this.excludedIngredients = meal.excludedIngredients || [];
         this.selections = meal.selectedRecords || {};
         this.plateDiameterCm = meal.plateDiameterCm || 0;
         const mealType = meal.mealType || suggestMealType();
@@ -78,8 +91,14 @@ Page({
           imageUrl: meal.imageUrl,
           dateText: formatDateTime(meal.createdAt),
           mealType,
+          evaluationCompleted: meal.evaluationStatus === 'completed',
         });
         this.refresh();
+        await saveAuditSnapshot(this.analysisId);
+        if (this.data.totalCount === 0 && meal.evaluationStatus === 'pending') {
+          await saveConsumptionEvaluation(this.analysisId, {}, true);
+        }
+        this.setData({ loaded: true });
         // 新记录：把默认餐次落库，保证历史一致。
         if (!meal.mealType) {
           saveMealType(this.analysisId, mealType).catch((err) =>
@@ -95,14 +114,14 @@ Page({
 
   /** 重新算一遍匹配并刷新页面（改选后也走这里） */
   refresh() {
-    const r = resolveMeal(this.dish, this.selections, this.plateDiameterCm);
+    const r = resolveMeal(this.dish, this.selections, this.plateDiameterCm, this.excludedIngredients);
     const pickerIndex = this.data.pickerIndex;
     const keyword = this.data.keyword.trim();
     // 展开的那一行如果在搜索，用搜索结果替掉它的备选列表。
     const searched = keyword && pickerIndex >= 0 ? searchRecords(keyword) : null;
 
     const ingredients: IngredientView[] = r.ingredients.map((row, i) => {
-      const prev = this.data.ingredients[i];
+      const prev = this.data.ingredients.find((ing) => ing.name === row.name);
       const list = searched && i === pickerIndex ? searched : row.candidates;
       return {
         ...row,
@@ -193,7 +212,7 @@ Page({
   },
 
   persistSelections() {
-    saveRecordSelections(this.analysisId, this.selections).catch((err) =>
+    saveRecordSelections(this.analysisId, this.selections).then(() => saveAuditSnapshot(this.analysisId)).catch((err) =>
       console.error('[result] save selections failed', err),
     );
   },
@@ -204,6 +223,31 @@ Page({
     saveMealType(this.analysisId, mealType).catch((err) =>
       console.error('[result] save mealType failed', err),
     );
+  },
+
+  async removeIngredient(e: WechatMiniprogram.TouchEvent) {
+    if (this.data.busy || !this.data.loaded) return;
+    const name = e.currentTarget.dataset.name as string;
+    if (!this.data.ingredients.some((i) => i.name === name)) return;
+    this.setData({ busy: true });
+    try {
+      const answer = await wx.showModal({ title: '删除食材', content: `确定删除「${name}」吗？删除后不再计入这餐的重量和饭后评估。`, confirmColor: '#c44b3e' });
+      if (!answer.confirm) return;
+      const next = [...this.excludedIngredients, name];
+      await saveExcludedIngredients(this.analysisId, next);
+      this.excludedIngredients = next;
+      this.setData({ pickerIndex: -1, keyword: '' });
+      this.refresh();
+      wx.showToast({ title: '食材已删除', icon: 'success' });
+    } catch (err) {
+      console.error('[result] delete ingredient failed', err);
+      wx.showToast({ title: '删除未保存，请重试', icon: 'none' });
+    } finally { this.setData({ busy: false }); }
+  },
+
+  goEvaluation() {
+    if (!this.data.loaded || this.data.busy) return;
+    wx.navigateTo({ url: `/pages/evaluation/evaluation?analysisId=${encodeURIComponent(this.analysisId)}` });
   },
 
   goHistory() {

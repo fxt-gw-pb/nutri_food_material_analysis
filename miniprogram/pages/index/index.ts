@@ -1,5 +1,9 @@
+import { checkPendingEvaluation } from '../../utils/evaluationNavigation';
+
 Page({
-  goUpload() {
+  onShow() { void checkPendingEvaluation(); },
+  async goUpload() {
+    if (!await checkPendingEvaluation()) return;
     wx.navigateTo({ url: '/pages/upload/upload' });
   },
   goHistory() {

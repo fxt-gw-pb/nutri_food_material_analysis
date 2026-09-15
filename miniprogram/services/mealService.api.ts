@@ -42,6 +42,10 @@ export interface MealServiceApi {
   saveRecordSelections(analysisId: string, selections: Record<string, string>): Promise<void>;
   /** 保存餐次（早餐 / 午餐 / 加餐…） */
   saveMealType(analysisId: string, mealType: MealType): Promise<void>;
+  getPendingMealEvaluation(): Promise<MealAnalysis | null>;
+  saveExcludedIngredients(analysisId: string, names: string[]): Promise<void>;
+  saveConsumptionEvaluation(analysisId: string, percentages: Record<string, number>, complete: boolean): Promise<void>;
+  saveAuditSnapshot(analysisId: string): Promise<void>;
   /** 获取历史记录列表（仅已完成的分析） */
   getMealHistory(): Promise<MealHistoryItem[]>;
   /** 删除一条分析记录（含云存储图片） */

@@ -3,10 +3,9 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 菜品拍照识别 + 质构（TPA）数据匹配的微信小程序。原生小程序 + TypeScript。
-面向老年用户回答「这道菜软不软、好不好嚼」。**本版本不做任何重量估算**（实测误差过大，已整条移除）。
+面向老年用户展示食材估重、软硬与咀嚼难度，并记录饭后食用比例。当前版本为 2026.9.15，详见 docs/release-2026-09-15.md。
 
-**一次识别只出一道菜。** 匹配的单位始终是「菜」——识别出的原食材不单独展示，只用来在库里找最像的那道菜；
-定位到菜之后，把这道菜测过的每种原食材作为该菜的源数据行全部列出。改选也是整道菜换。
+**一次识别只出一道菜，按食材逐项匹配、估重和评估。** 允许排除误识别食材；保留原始识别结果。肉类最终估重与区间乘 0.5。
 
 ## 命令
 
@@ -16,8 +15,8 @@ npm run type-check                 # tsc --noEmit，提交/改动后应保持无
 python3 scripts/build-texture-db.py  # 改了质构 xlsx 后重新生成内置数据库
 ```
 
-- **无构建步骤、无测试框架。** 微信开发者工具内置 TS 编译插件会就地把 `.ts` 编译为 `.js`（这些 `.js` 已被 `.gitignore`，不要提交，也不要手动编辑）。
-- **运行与调试只能在微信开发者工具内进行**：导入项目时目录选仓库根目录（含 `project.config.json`）。CLI 无法启动或预览小程序。
+- **无单独前端构建步骤；回归测试为 `npm test`（Node 内置测试运行器）。** 微信开发者工具内置 TS 编译插件会就地把 `.ts` 编译为 `.js`（这些 `.js` 已被 `.gitignore`，不要提交，也不要手动编辑）。
+- **运行与调试只能在微信开发者工具内进行**：导入项目时目录选仓库根目录（含 `project.config.json`）。官方 CLI 支持打开、预览、自动化与上传。
 - 改动 TS 后用 `npm run type-check` 校验类型；`tsconfig` 为 `strict` + `noUnusedLocals`。
 
 ## 架构要点
@@ -49,7 +48,7 @@ python3 scripts/build-texture-db.py  # 改了质构 xlsx 后重新生成内置�
    **改权重/阈值前先读 `docs/ai-pipeline.md`。**
 
 3. **`miniprogram/utils/texture.ts` —— 识别结果 + 用户改选 → 页面视图（`ResolvedMeal`）。**
-   关键约定：**匹配结果不落库**，每次打开记录都现算一遍，只有用户手动改过的
+   关键约定：**展示时重算匹配，后台另存 auditSnapshot**，每次打开记录都现算一遍，只有用户手动改过的
    `selectedRecords`（识别食材名 → 质构记录 id，只存被改过的那几种）会覆盖自动结果。
    这样质构库升级后老记录会自动用上新匹配。
 
@@ -84,6 +83,6 @@ python3 scripts/build-texture-db.py  # 改了质构 xlsx 后重新生成内置�
 
 - **密钥边界（务必遵守）**：千问 API Key **只能**放在云函数环境变量 `DASHSCOPE_API_KEY`，前端代码与仓库（包括 `config.ts`）绝不包含。`config.ts` 里只放非密信息——CloudBase 环境 ID 会随小程序下发到客户端、本身不是密钥，故 **`config.ts` 纳入版本管理**。`.env*` 与 `project.private.config.json` 已被忽略。**换 Key 只改云端环境变量，不改代码、不重新发版**（步骤见 `docs/deploy-and-apikey.md`）。
 - **质构展示口径**：始终标注为「同类菜肴样本的实验室 TPA 实测参考值」，不得表现为对用户这一份菜的实测，也不得写成医学建议。页面上的免责声明不要删。
-- **不要重新引入重量**：`Dish` 上没有克数字段，云函数 prompt 明确要求不估重量。
-- **不要退回「一次多道菜」或「每个食材各自匹配」**：产品定位就是一次一道菜、整道换。
+- **估重校正**：按识别食材名称判断肉类，不能仅因匹配菜品属于肉类就将配菜减半。依据及来源仅在后台审计快照保留。
+- **饭后评估**：每种食材 0%–500%；每项需明确确认；待评记录阻止下一餐，旧记录不强制补评。更改数据访问时同步更新 mock/cloud 实现。
 - 三份文档：`docs/ai-pipeline.md`（识别 + 匹配规则 + 展示阈值）、`docs/cloudbase-integration.md`（云资源与 service 对照）、`docs/deploy-and-apikey.md`（发版与换 Key 的点按手册）。

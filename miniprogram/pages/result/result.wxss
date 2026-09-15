@@ -267,3 +267,10 @@
   line-height: 1.6;
 }
 .plate-note { font-size: 24rpx; margin-left: 12rpx; }
+
+.row-head { align-items: center; }
+.ing-name { flex: 1; min-width: 0; word-break: break-all; }
+.delete-ingredient { flex-shrink: 0; margin: 0; padding: 0 24rpx; min-height: 80rpx; line-height: 80rpx; color: #b43d31; background: #fff5f2; font-size: 28rpx; }
+.evaluation-entry { margin: 32rpx 0; }
+.evaluation-hint { text-align: center; margin-top: 16rpx; line-height: 1.6; }
+.summary-line { flex-wrap: wrap; }

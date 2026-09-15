@@ -7,6 +7,7 @@ import {
   normalizePlateDiameter,
 } from '../../utils/weight';
 import { safeGet, safeSet } from '../../utils/storage';
+import { checkPendingEvaluation } from '../../utils/evaluationNavigation';
 
 // 上次选过的盘径记在本地：同一个人多半天天用同一个盘子，不该每次都重选。
 const LAST_DIAMETER_KEY = 'last_plate_diameter';
@@ -37,6 +38,8 @@ Page({
       customDiameter: preset ? '' : String(last),
     });
   },
+
+  onShow() { void checkPendingEvaluation(); },
 
   // 选择预设直径
   selectDiameter(e: WechatMiniprogram.TouchEvent) {
@@ -103,8 +106,9 @@ Page({
     safeSet(LAST_DIAMETER_KEY, plateDiameterCm);
 
     this.setData({ submitting: true });
-    wx.showLoading({ title: '上传中', mask: true });
     try {
+      if (!await checkPendingEvaluation()) return;
+      wx.showLoading({ title: '上传中', mask: true });
       const { fileId, imageUrl } = await uploadMealImage(this.data.imageUrl);
       const { analysisId } = await createMealAnalysis({
         imageUrl,

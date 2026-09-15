@@ -19,12 +19,25 @@ import * as cloudImpl from './mealService.cloud';
 const impl: MealServiceApi = CONFIG.useCloud ? cloudImpl : mockImpl;
 
 export const uploadMealImage = impl.uploadMealImage;
-export const createMealAnalysis = impl.createMealAnalysis;
+let creating = false;
+export async function createMealAnalysis(params: import('./mealService.api').CreateMealAnalysisParams): Promise<{ analysisId: string }> {
+  if (creating) throw new Error('正在创建识别，请稍候');
+  creating = true;
+  try {
+    const pending = await impl.getPendingMealEvaluation();
+    if (pending) throw new Error('请先完成上一餐的饭后评估');
+    return await impl.createMealAnalysis(params);
+  } finally { creating = false; }
+}
 export const getMealAnalysisStatus = impl.getMealAnalysisStatus;
 export const getMealAnalysisResult = impl.getMealAnalysisResult;
 export const saveRecordSelections = impl.saveRecordSelections;
 export const saveMealType = impl.saveMealType;
 export const getMealHistory = impl.getMealHistory;
 export const deleteMealRecord = impl.deleteMealRecord;
+export const getPendingMealEvaluation = impl.getPendingMealEvaluation;
+export const saveExcludedIngredients = impl.saveExcludedIngredients;
+export const saveConsumptionEvaluation = impl.saveConsumptionEvaluation;
+export const saveAuditSnapshot = impl.saveAuditSnapshot;
 
 export type { CreateMealAnalysisParams, AnalysisProgress } from './mealService.api';

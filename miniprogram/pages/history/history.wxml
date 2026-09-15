@@ -30,7 +30,8 @@
       <view class="record-texture">
         整体 <text class="record-texture-value">{{item.textureSummary}}</text>
         <text wx:if="{{item.totalG}}" class="record-texture-value"> · 约 {{item.totalG}} g</text>
-        <text class="muted" wx:if="{{item.totalCount}}"> · 匹配 {{item.matchedCount}}/{{item.totalCount}}</text>
+        <view wx:if="{{item.evaluationStatus === 'pending'}}" class="evaluation-pending">待饭后评估</view>
+        <view wx:if="{{item.evaluationStatus === 'completed'}}" class="muted">已评估 · 估算摄入 {{item.totalConsumedG || 0}} g</view>
       </view>
     </view>
   </view>

@@ -18,9 +18,9 @@
     <view class="title-sm">怎么用</view>
     <view class="steps">
       <view class="step"><text class="step-no">1</text><text>拍摄或选择一张菜品照片</text></view>
-      <view class="step"><text class="step-no">2</text><text>在质构库里找到对应的那道菜</text></view>
-      <view class="step"><text class="step-no">3</text><text>列出这道菜每种原食材的软硬与咀嚼难度</text></view>
-      <view class="step"><text class="step-no">4</text><text>认错了？从下方备选里换一道菜</text></view>
+      <view class="step"><text class="step-no">2</text><text>查看每种食材的估重和软硬程度</text></view>
+      <view class="step"><text class="step-no">3</text><text>删掉照片里没有的食材</text></view>
+      <view class="step"><text class="step-no">4</text><text>吃完饭后，点击“饭后评估”记录食用比例</text></view>
     </view>
   </view>
 

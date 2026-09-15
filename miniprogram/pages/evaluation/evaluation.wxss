@@ -1,0 +1,15 @@
+@import "../result/result.wxss";
+.evaluation-title { margin: 16rpx 0; }
+.instructions { margin-top: 24rpx; font-size: 32rpx; line-height: 1.7; }
+.portion-help { color: #54615a; font-size: 28rpx; line-height: 1.7; margin-top: 12rpx; }
+.percent-line { display: flex; align-items: center; flex-wrap: wrap; gap: 20rpx; margin-top: 24rpx; }
+.percent-value { font-size: 48rpx; font-weight: 700; color: #23875c; }
+.confirm-status { font-size: 26rpx; color: #6d756f; }
+.scale { display: flex; justify-content: space-between; margin: 0 20rpx 20rpx; color: #6d756f; font-size: 26rpx; }
+.presets { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.preset { margin: 0; padding: 0 16rpx; min-width: 110rpx; line-height: 80rpx; font-size: 28rpx; background: #f1f5f3; color: #3c5146; }
+.preset.selected { background: #2fae76; color: white; }
+.intake { margin-top: 20rpx; color: #23875c; font-size: 30rpx; line-height: 1.6; }
+.save-status { margin: 20rpx 0; color: #616e66; font-size: 26rpx; line-height: 1.6; }
+/* 显式覆盖微信 style v2 默认按钮宽度，保持两行可点选比例。 */
+.presets .preset { flex: 0 0 calc(25% - 9rpx); width: calc(25% - 9rpx); min-width: 0; margin: 0; padding: 0; }

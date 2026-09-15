@@ -1,10 +1,11 @@
 {
   "name": "nutri-food-material-analysis",
-  "version": "0.1.0",
-  "description": "微信小程序：餐盘拍照识别与食材重量估算（MVP 骨架）",
+  "version": "2026.9.15",
+  "description": "微信小程序：食材识别、估重与饭后摄入评估",
   "private": true,
   "scripts": {
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "node --test tests/*.test.cjs"
   },
   "devDependencies": {
     "miniprogram-api-typings": "^3.12.2",

@@ -86,6 +86,13 @@ export interface MealAnalysis {
    * 只存被改过的那几种食材，其余仍走自动匹配。
    */
   selectedRecords?: Record<string, string>;
+  /** 保留原始识别结果，排除的食材不再计入展示、总重或评估。 */
+  excludedIngredients?: string[];
+  /** 旧记录缺少此字段，不强制补评。 */
+  evaluationStatus?: 'pending' | 'completed';
+  consumption?: ConsumptionEvaluation;
+  /** 仅供后台查询及导出，不在老人界面展示。 */
+  auditSnapshot?: MealAuditSnapshot;
   /** 失败时走到了哪一步（如「获取图片临时地址」），成功时为空 */
   errorStage?: string;
   /** 失败原因原文（已截断到 500 字），成功时为空 */
@@ -114,6 +121,39 @@ export interface MealHistoryItem {
   ingredientText: string;
   /** 质构摘要，如 "偏软 · 好嚼" */
   textureSummary: string;
-  /** 整道菜的估算总重（整数 g），估不出时为 0 */
+  evaluationStatus?: 'pending' | 'completed';
+  totalConsumedG?: number;
+  /** 整道菜的估算总重（g），估不出时为 0 */
   totalG: number;
+}
+
+
+export interface ConsumptionEvaluation {
+  /** 只存用户明确调整或确认过的食材，缺失表示未填写。 */
+  percentages: Record<string, number>;
+  consumedGrams: Record<string, number>;
+  totalConsumedG: number;
+  updatedAt: number;
+  completedAt?: number;
+}
+
+export interface MealAuditSnapshot {
+  algorithmVersion: string;
+  generatedAt: number;
+  plateDiameterCm: number;
+  totalG: number;
+  ingredients: {
+    name: string;
+    excluded: boolean;
+    grams: number;
+    weightRange: string;
+    weightBasis: string;
+    weightConfidence: ConfidenceLevel;
+    recordId: string;
+    matchedDish: string;
+    matchedIngredient: string;
+    matchedCookingText: string;
+    matchReason: string;
+    sources: { testMode: string; source: string }[];
+  }[];
 }

@@ -12,6 +12,7 @@
 
 import { MealAnalysis, AnalysisStatus, MealHistoryItem, MealType, Dish } from '../types/index';
 import { resolveMeal } from '../utils/texture';
+import { buildAuditSnapshot, buildConsumption, validateExcluded } from '../utils/evaluation';
 import { CONFIG } from './config';
 import { AnalysisProgress, CreateMealAnalysisParams } from './mealService.api';
 
@@ -50,6 +51,10 @@ interface AnyDoc {
   // 旧版文档存的是 result.dishes 数组，读取时兼容取第一道。
   result?: { dish?: Dish | null; dishes?: Dish[] };
   selectedRecords?: Record<string, string>;
+  excludedIngredients?: string[];
+  evaluationStatus?: MealAnalysis['evaluationStatus'];
+  consumption?: MealAnalysis['consumption'];
+  auditSnapshot?: MealAnalysis['auditSnapshot'];
   errorStage?: string;
   errorMessage?: string;
   createdAt: number;
@@ -74,6 +79,10 @@ function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
     promptVersion: doc.promptVersion,
     dish: docDish(doc),
     selectedRecords: doc.selectedRecords || {},
+    excludedIngredients: doc.excludedIngredients || [],
+    evaluationStatus: doc.evaluationStatus,
+    consumption: doc.consumption,
+    auditSnapshot: doc.auditSnapshot,
     plateDiameterCm: doc.plateDiameterCm,
     errorStage: doc.errorStage,
     errorMessage: doc.errorMessage,
@@ -84,7 +93,7 @@ function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
 
 function docToHistoryItem(doc: AnyDoc): MealHistoryItem {
   // 质构摘要在本地按同一套匹配规则现算，保证与详情页一致。
-  const resolved = resolveMeal(docDish(doc), doc.selectedRecords, doc.plateDiameterCm);
+  const resolved = resolveMeal(docDish(doc), doc.selectedRecords, doc.plateDiameterCm, doc.excludedIngredients);
   return {
     analysisId: doc._id,
     date: doc.createdAt,
@@ -96,6 +105,8 @@ function docToHistoryItem(doc: AnyDoc): MealHistoryItem {
     ingredientText: resolved.ingredients.map((i) => i.name).join('、'),
     textureSummary: resolved.summary,
     totalG: resolved.totalG,
+    evaluationStatus: doc.evaluationStatus,
+    totalConsumedG: doc.consumption?.totalConsumedG,
   };
 }
 
@@ -124,12 +135,15 @@ export function createMealAnalysis(
         plateDiameterCm: params.plateDiameterCm,
       },
     })
-    .then((res) => {
+    .then(async (res) => {
       const result = res.result as { analysisId?: string } | undefined;
       if (!result || !result.analysisId) {
         throw new Error('analyzeMeal 创建任务失败');
       }
       const analysisId = result.analysisId;
+      await db().collection(COLLECTION).doc(analysisId).update({
+        data: { evaluationStatus: 'pending', excludedIngredients: [], updatedAt: Date.now() },
+      });
       // 第二步：触发后台识别（不 await；前端在 analyzing 页轮询 status 感知进度）。
       // 请求已发出后即使本页跳转，云函数仍会在服务端跑完。
       wx.cloud
@@ -211,4 +225,43 @@ export function deleteMealRecord(analysisId: string): Promise<void> {
     }
     return Promise.all(ops).then(() => undefined);
   });
+}
+
+export async function getPendingMealEvaluation(): Promise<MealAnalysis | null> {
+  // 只检索新版的待评记录；不从最近 30 条历史猜测，也不要求老记录补评。
+  const res = await db().collection(COLLECTION)
+    .where({ evaluationStatus: 'pending', status: 'completed' }).limit(1).get();
+  return res.data.length ? docToMealAnalysis(res.data[0] as AnyDoc) : null;
+}
+
+export async function saveAuditSnapshot(analysisId: string): Promise<void> {
+  const meal = await getMealAnalysisResult(analysisId);
+  await db().collection(COLLECTION).doc(analysisId).update({
+    data: { auditSnapshot: db().command.set(buildAuditSnapshot(meal)) },
+  });
+}
+
+export async function saveExcludedIngredients(analysisId: string, names: string[]): Promise<void> {
+  const meal = await getMealAnalysisResult(analysisId);
+  meal.excludedIngredients = validateExcluded(meal, names);
+  const empty = resolveMeal(meal.dish, meal.selectedRecords, meal.plateDiameterCm, meal.excludedIngredients).totalCount === 0;
+  const complete = empty || meal.evaluationStatus === 'completed';
+  const consumption = buildConsumption(meal, meal.consumption?.percentages || {}, complete);
+  await db().collection(COLLECTION).doc(analysisId).update({ data: {
+    excludedIngredients: meal.excludedIngredients,
+    consumption: db().command.set(consumption),
+    evaluationStatus: complete ? 'completed' : 'pending',
+    auditSnapshot: db().command.set(buildAuditSnapshot(meal)), updatedAt: Date.now(),
+  } });
+}
+
+export async function saveConsumptionEvaluation(analysisId: string, percentages: Record<string, number>, complete: boolean): Promise<void> {
+  const meal = await getMealAnalysisResult(analysisId);
+  if (!complete && meal.evaluationStatus === 'completed') throw new Error('这餐已评估完成，请重新打开页面');
+  if (meal.status !== 'completed') throw new Error('请等待识别完成');
+  const consumption = buildConsumption(meal, percentages, complete);
+  await db().collection(COLLECTION).doc(analysisId).update({ data: {
+    consumption: db().command.set(consumption), evaluationStatus: complete ? 'completed' : 'pending',
+    auditSnapshot: db().command.set(buildAuditSnapshot(meal)), updatedAt: Date.now(),
+  } });
 }
