@@ -12,4 +12,4 @@
 .intake { margin-top: 20rpx; color: #23875c; font-size: 30rpx; line-height: 1.6; }
 .save-status { margin: 20rpx 0; color: #616e66; font-size: 26rpx; line-height: 1.6; }
 /* 显式覆盖微信 style v2 默认按钮宽度，保持两行可点选比例。 */
-.presets .preset { flex: 0 0 calc(25% - 9rpx); width: calc(25% - 9rpx); min-width: 0; margin: 0; padding: 0; }
+.presets .preset { flex: 0 0 22%; width: 22%; min-width: 0; margin: 0; padding: 0; }
