@@ -1,1 +1,4 @@
 @import "../../styles/meal.wxss";
+@import "../../styles/intake.wxss";
+.detail-intake .dish-head { margin-bottom: 16rpx; }
+.daily-link { margin-top: 24rpx; }

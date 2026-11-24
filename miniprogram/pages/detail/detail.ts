@@ -4,6 +4,8 @@ import { formatDateTime, mealTypeLabel } from '../../utils/format';
 import { resolveMeal, IngredientRow } from '../../utils/texture';
 import { confirmRetake } from '../../utils/retakeNavigation';
 import { clearMealSession } from '../../utils/mealSession';
+import { chinaDateKey, dishIntakeItems, summarizeIntake } from '../../utils/intake';
+import { SummaryView, toSummaryView } from '../../utils/intakeView';
 
 Page({
   data: {
@@ -12,6 +14,8 @@ Page({
     totalWeightText: '', plateDiameterCm: 0, ingredients: [] as (IngredientRow & { detailOpen: boolean })[],
     loaded: false, loadError: '', busy: false, evaluationCompleted: false, totalConsumedG: 0,
     mealSessionId: '', sessionFinished: false,
+    /** 已完成饭后评估时，这道菜吃下的质构系数与营养 */
+    intake: null as SummaryView | null, textureOpen: false, nutrientOpen: false, dateKey: '',
   },
   analysisId: '',
   excludedIngredients: [] as string[],
@@ -43,6 +47,9 @@ Page({
         ingredients: r.ingredients.map((row) => ({ ...row, detailOpen: this.data.ingredients.find((old) => old.name === row.name)?.detailOpen || false })),
         loaded: true, evaluationCompleted: meal.evaluationStatus === 'completed', totalConsumedG: meal.consumption?.totalConsumedG || 0,
         mealSessionId: meal.mealSessionId || '', sessionFinished: Boolean(meal.mealSessionFinishedAt),
+        intake: meal.evaluationStatus === 'completed' && meal.consumption && r.totalCount > 0
+          ? toSummaryView(summarizeIntake(dishIntakeItems(meal))) : null,
+        dateKey: chinaDateKey(meal.createdAt),
       });
     } catch (err) {
       console.error('[detail] load failed', err);
@@ -79,6 +86,12 @@ Page({
     this.setData({ busy: true });
     try { await confirmRetake(this.analysisId, undefined, this.data.mealSessionId); }
     finally { this.setData({ busy: false }); }
+  },
+  toggleTexture() { this.setData({ textureOpen: !this.data.textureOpen }); },
+  toggleNutrient() { this.setData({ nutrientOpen: !this.data.nutrientOpen }); },
+  goDaily() {
+    if (!this.data.participantCode) return;
+    wx.navigateTo({ url: `/pages/daily/daily?participantCode=${encodeURIComponent(this.data.participantCode)}&date=${this.data.dateKey}&analysisId=${encodeURIComponent(this.analysisId)}` });
   },
   goEvaluation() {
     if (!this.data.loaded || this.data.busy) return;

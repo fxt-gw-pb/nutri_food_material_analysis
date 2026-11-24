@@ -53,6 +53,11 @@ Page({
     wx.navigateTo({ url: '/pages/questionnaire/questionnaire' });
   },
 
+  goDaily() {
+    if (!this.saveProfile()) return;
+    wx.navigateTo({ url: '/pages/daily/daily' });
+  },
+
   goQuestionnaireHistory() {
     if (!this.saveProfile()) return;
     wx.navigateTo({ url: '/pages/questionnaire-history/questionnaire-history' });

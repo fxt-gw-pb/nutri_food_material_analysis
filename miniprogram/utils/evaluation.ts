@@ -1,6 +1,7 @@
 import { ConsumptionEvaluation, MealAnalysis, MealAuditSnapshot } from '../types/index';
 import { resolveMeal } from './texture';
 import { WEIGHT_ALGORITHM_VERSION } from './weight';
+import { dishIntakeItems, storedIntake } from './intake';
 
 export function buildAuditSnapshot(meal: MealAnalysis): MealAuditSnapshot {
   const resolved = resolveMeal(meal.dish, meal.selectedRecords, meal.plateDiameterCm);
@@ -41,7 +42,7 @@ export function buildConsumption(meal: MealAnalysis, percentages: Record<string,
     percentages: clean, consumedGrams: grams,
     totalConsumedG: Math.round(Object.keys(grams).reduce((s, n) => s + grams[n], 0) * 100) / 100,
     updatedAt: now,
-    ...(complete ? { completedAt: now } : {}),
+    ...(complete ? { completedAt: now, intake: storedIntake(dishIntakeItems(meal, grams)) } : {}),
   };
 }
 

@@ -259,3 +259,9 @@ export async function finishMealSession(mealSessionId: string): Promise<void> {
   });
   saveRecords(all);
 }
+
+export async function getMealsInRange(participantCode: string, start: number, end: number): Promise<MealAnalysis[]> {
+  return loadRecords()
+    .filter((r) => r.participantCode === participantCode && r.status === 'completed' && r.createdAt >= start && r.createdAt < end)
+    .sort((a, b) => a.createdAt - b.createdAt);
+}

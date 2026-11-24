@@ -56,4 +56,9 @@ export interface MealServiceApi {
   discardMealAnalysis(analysisId: string): Promise<void>;
   /** 结束当前饭局的拍摄阶段，饭后再逐条评估。 */
   finishMealSession(mealSessionId: string): Promise<void>;
+  /**
+   * 某位参与者在 [start, end) 内拍的全部已完成识别（每日汇总用），按拍照时间升序。
+   * 只能读到本手机微信账号创建的记录（集合权限为仅创建者可读写）。
+   */
+  getMealsInRange(participantCode: string, start: number, end: number): Promise<MealAnalysis[]>;
 }

@@ -311,3 +311,18 @@ export async function finishMealSession(mealSessionId: string): Promise<void> {
     data: { mealSessionFinishedAt: now, updatedAt: now },
   })));
 }
+
+export async function getMealsInRange(participantCode: string, start: number, end: number): Promise<MealAnalysis[]> {
+  const _ = db().command;
+  const out: AnyDoc[] = [];
+  // 小程序端单次最多返回 20 条，一天的菜可能更多，分页取完（最多 100 条兜底）。
+  for (let skip = 0; skip < 100; skip += 20) {
+    const res = await db().collection(COLLECTION)
+      .where({ participantCode, status: 'completed', createdAt: _.gte(start).and(_.lt(end)) })
+      .orderBy('createdAt', 'asc').skip(skip).limit(20).get();
+    const page = res.data as AnyDoc[];
+    out.push(...page);
+    if (page.length < 20) break;
+  }
+  return out.map(docToMealAnalysis);
+}

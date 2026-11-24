@@ -1,0 +1,32 @@
+<!-- 摄入汇总：质量加权切割质构 + 营养摄入。数据见 utils/intakeView.ts 的 SummaryView；
+     页面需提供 toggleTexture / toggleNutrient 两个方法和 textureOpen / nutrientOpen 两个开关。 -->
+<template name="intake-summary">
+  <view class="intake-section">
+    <view class="intake-label">质量加权切割硬度</view>
+    <block wx:if="{{hasTexture}}">
+      <view class="intake-value-line"><text class="intake-value">{{hardnessText}}</text><text class="intake-unit">gf</text><text wx:if="{{hardnessLabel}}" class="tag intake-tag">{{hardnessLabel}}</text></view>
+      <view class="intake-sub">咀嚼性 {{chewinessText}} gf<text wx:if="{{chewinessLabel}}"> · {{chewinessLabel}}</text></view>
+      <view class="intake-note">按吃下的 {{textureG}} g 有切割实测数据的食物加权<text wx:if="{{noTexture}}">；{{noTexture}}没有切割数据，未计入</text></view>
+      <button class="intake-toggle" hover-class="surface-hover" bindtap="toggleTexture" aria-expanded="{{textureOpen}}">{{textureOpen ? '收起切割指标 −' : '全部 8 项切割指标 ＋'}}</button>
+      <view wx:if="{{textureOpen}}" class="metric-table">
+        <view wx:for="{{texture}}" wx:key="label" class="metric-line"><text class="metric-name muted">{{item.label}}</text><text class="metric-num">{{item.valueText}} <text class="metric-unit muted">{{item.unit}}</text></text></view>
+      </view>
+    </block>
+    <view wx:else class="intake-empty">吃下的食物都没有切割实测数据，暂时算不出。</view>
+  </view>
+  <view class="intake-section">
+    <view class="intake-label">营养摄入</view>
+    <block wx:if="{{hasNutrition}}">
+      <view class="nutrient-grid">
+        <view wx:for="{{mainNutrients}}" wx:key="label" class="nutrient-cell"><view><text class="nutrient-value">{{item.valueText}}</text><text class="nutrient-unit">{{item.unit}}</text></view><view class="nutrient-name">{{item.label}}{{item.incomplete ? ' *' : ''}}</view></view>
+      </view>
+      <view class="intake-note">按吃下的 {{nutritionG}} g 已对上《中国食物成分表》的食物计算<text wx:if="{{noNutrition}}">；{{noNutrition}}没有对应食物，未计入</text></view>
+      <button class="intake-toggle" hover-class="surface-hover" bindtap="toggleNutrient" aria-expanded="{{nutrientOpen}}">{{nutrientOpen ? '收起营养素 −' : '维生素与矿物质 ＋'}}</button>
+      <view wx:if="{{nutrientOpen}}" class="metric-table">
+        <view wx:for="{{otherNutrients}}" wx:key="label" class="metric-line"><text class="metric-name muted">{{item.label}}{{item.incomplete ? ' *' : ''}}</text><text class="metric-num">{{item.valueText}} <text class="metric-unit muted">{{item.unit}}</text></text></view>
+      </view>
+      <view wx:if="{{hasIncomplete}}" class="intake-footnote">* 部分食物在成分表中缺这一项数据，合计偏低。</view>
+    </block>
+    <view wx:else class="intake-empty">吃下的食物在成分表里都没有对应条目，暂时算不出。</view>
+  </view>
+</template>

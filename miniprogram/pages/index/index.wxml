@@ -26,6 +26,11 @@
       <view class="shortcut-title">每周随访</view><view class="shortcut-desc">6 个问题，记录近况</view>
     </button>
   </view>
+  <button class="shortcut shortcut-daily reveal reveal-delay" hover-class="surface-hover" bindtap="goDaily">
+    <view class="shortcut-icon"><image class="ui-icon" src="/assets/icons/chart.svg" /></view>
+    <view class="daily-entry-text"><view class="shortcut-title">每日汇总</view><view class="shortcut-desc">一餐、一天吃下的质构系数与营养</view></view>
+    <text class="shortcut-arrow">↗</text>
+  </button>
   <view class="home-secondary"><text class="muted">让每一餐，都有迹可循</text><button class="text-button" hover-class="btn-hover" bindtap="goQuestionnaireHistory">问卷记录 <text> ›</text></button></view>
   <view class="card guide-card">
     <button class="guide-toggle" hover-class="surface-hover" aria-expanded="{{guideOpen}}" bindtap="toggleGuide"><view class="section-title"><image class="ui-icon icon-sm" src="/assets/icons/spark.svg" />第一次使用？</view><text class="guide-toggle-label">{{guideOpen ? '收起 −' : '看看怎么用 ＋'}}</text></button>

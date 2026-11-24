@@ -1,4 +1,5 @@
 @import "../../styles/meal.wxss";
+@import "../../styles/intake.wxss";
 .identity-hint { color: var(--sub); font-size: 26rpx; margin-bottom: 22rpx; }
 .evaluation-photo { display: block; width: 100%; height: 300rpx; border-radius: 20rpx; background: #f1f4ea; margin-bottom: 24rpx; }
 .meal-date { margin-top: 8rpx; }
@@ -27,3 +28,5 @@
 .submit-identity { font-size: 28rpx; word-break: break-all; }
 .submit-code { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .portion-card, .presets button.preset { transition: none; } }
+
+.evaluation-intake .dish-head { margin-bottom: 16rpx; }

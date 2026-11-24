@@ -1,0 +1,17 @@
+/* 摄入汇总（templates/intake.wxml）的共享样式。 */
+.intake-section + .intake-section { margin-top: 28rpx; padding-top: 26rpx; border-top: 1rpx solid var(--border); }
+.intake-label { font-size: 26rpx; color: var(--sub); }
+.intake-value-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10rpx; margin-top: 8rpx; }
+.intake-value { font-size: 52rpx; line-height: 1.25; font-weight: 700; color: var(--primary-dark); }
+.intake-unit { font-size: 26rpx; color: var(--sub); }
+.intake-tag { margin-left: 8rpx; }
+.intake-sub { margin-top: 6rpx; font-size: 28rpx; color: var(--text); }
+.intake-note { margin-top: 10rpx; font-size: 24rpx; line-height: 1.65; color: var(--muted); }
+.intake-empty { margin-top: 10rpx; font-size: 27rpx; color: var(--sub); }
+.intake-footnote { margin-top: 12rpx; font-size: 23rpx; color: var(--muted); }
+button.intake-toggle { display: inline-flex; align-items: center; min-height: 72rpx; width: auto; margin: 10rpx 0 0; padding: 8rpx 0; background: transparent; color: var(--primary); font-size: 26rpx; font-weight: 500; line-height: 1.5; }
+.nutrient-grid { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 14rpx; }
+.nutrient-cell { flex: 1 1 calc(50% - 8rpx); min-width: 0; padding: 18rpx 20rpx; border-radius: 18rpx; background: #f4f7ef; }
+.nutrient-value { font-size: 40rpx; font-weight: 700; color: var(--primary-dark); }
+.nutrient-unit { margin-left: 6rpx; font-size: 24rpx; color: var(--sub); }
+.nutrient-name { margin-top: 2rpx; font-size: 25rpx; color: var(--sub); }

@@ -4,6 +4,8 @@ import { MealAnalysis } from '../../types/index';
 import { resolveMeal } from '../../utils/texture';
 import { formatDateTime } from '../../utils/format';
 import { confirmRetake } from '../../utils/retakeNavigation';
+import { chinaDateKey, dishIntakeItems, summarizeIntake } from '../../utils/intake';
+import { SummaryView, toSummaryView } from '../../utils/intakeView';
 
 interface EvaluationRow { name: string; grams: number; percent: number; confirmed: boolean; consumedG: number }
 
@@ -13,6 +15,8 @@ Page({
     participantCode: '', imageUrl: '',
     rows: [] as EvaluationRow[], presets: [0, 25, 50, 75, 100, 200, 500],
     totalConsumedG: 0, remaining: 0, completed: false, saveText: '',
+    /** 按已确认比例算出的这道菜摄入（质量加权切割质构 + 营养）；还没确认任何食材时为 null */
+    intake: null as SummaryView | null, textureOpen: false, nutrientOpen: false,
   },
   analysisId: '',
   meal: null as MealAnalysis | null,
@@ -73,9 +77,15 @@ Page({
       return { name: i.name, grams: i.grams, percent: confirmed ? p : 100, confirmed,
         consumedG: confirmed ? Math.round(i.grams * p) / 100 : 0 };
     });
-    this.setData({ rows, remaining: rows.filter((r) => !r.confirmed).length,
+    const grams: Record<string, number> = {};
+    rows.forEach((r) => { if (r.confirmed) grams[r.name] = r.consumedG; });
+    const confirmedCount = Object.keys(grams).length;
+    const intake = confirmedCount ? toSummaryView(summarizeIntake(dishIntakeItems(meal, grams))) : null;
+    this.setData({ rows, remaining: rows.filter((r) => !r.confirmed).length, intake,
       totalConsumedG: Math.round(rows.reduce((s, r) => s + r.consumedG, 0) * 100) / 100 });
   },
+  toggleTexture() { this.setData({ textureOpen: !this.data.textureOpen }); },
+  toggleNutrient() { this.setData({ nutrientOpen: !this.data.nutrientOpen }); },
   onSliderChange(e: WechatMiniprogram.CustomEvent<{ value: number }>) {
     this.setPercent(e.currentTarget.dataset.name as string, e.detail.value);
   },
@@ -159,7 +169,14 @@ Page({
       try { clearEvaluationDraft(this.analysisId); } catch (err) { console.warn('[evaluation] draft cleanup failed', err); }
       this.setData({ completed: true, saveText: '饭后评估已完成，可以记录下一餐' });
       wx.showToast({ title: '评估已保存', icon: 'success' });
-      wx.reLaunch({ url: '/pages/index/index' });
+      // 评估完直接看这顿饭和这一天的质构系数与营养；旧记录没有编号时回首页。
+      const meal = this.meal;
+      if (meal && meal.participantCode) {
+        const query = `participantCode=${encodeURIComponent(meal.participantCode)}&date=${chinaDateKey(meal.createdAt)}&analysisId=${encodeURIComponent(this.analysisId)}`;
+        wx.reLaunch({ url: `/pages/daily/daily?${query}` });
+      } else {
+        wx.reLaunch({ url: '/pages/index/index' });
+      }
     } catch (err) {
       console.error('[evaluation] complete failed', err);
       this.setData({ saveText: '评估未提交成功，请联网后重试' });

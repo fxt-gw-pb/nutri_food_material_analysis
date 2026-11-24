@@ -1,0 +1,30 @@
+@import "../../styles/meal.wxss";
+@import "../../styles/intake.wxss";
+.daily-filter .participant-identity { margin-bottom: 16rpx; }
+.code-row { display: flex; gap: 16rpx; align-items: center; }
+.code-input { flex: 1; min-width: 0; height: 88rpx; padding: 0 22rpx; border: 2rpx solid #cbd8c8; border-radius: 18rpx; background: #f9fbf6; font-size: 30rpx; }
+button.code-apply { width: auto; min-height: 88rpx; padding: 0 32rpx; font-size: 28rpx; }
+.date-bar { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 22rpx; }
+button.date-step { width: auto; min-height: 80rpx; margin: 0; padding: 0 18rpx; background: transparent; color: var(--primary); font-size: 27rpx; font-weight: 500; line-height: 80rpx; }
+button.date-step[disabled] { color: #a8b3aa; background: transparent; }
+.date-current { padding: 12rpx 22rpx; border-radius: 16rpx; background: var(--primary-soft); color: var(--primary-dark); font-size: 30rpx; font-weight: 600; }
+.pending-card { background: var(--warn-bg); border-color: #efe1c2; box-shadow: none; }
+.pending-title { color: var(--warn-text); font-size: 28rpx; font-weight: 600; margin-bottom: 8rpx; }
+button.pending-item { display: flex; justify-content: space-between; align-items: center; gap: 16rpx; width: 100%; min-height: 84rpx; margin: 0; padding: 10rpx 0; background: transparent; color: var(--text); font-size: 28rpx; font-weight: 400; text-align: left; line-height: 1.5; }
+.pending-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pending-go { color: var(--warn-text); flex-shrink: 0; }
+.day-card .dish-head { margin-bottom: 18rpx; }
+.section-caption { margin: 32rpx 4rpx 16rpx; font-size: 30rpx; font-weight: 600; }
+.meal-figures { display: flex; gap: 14rpx; margin: 18rpx 0 8rpx; }
+.meal-figure { flex: 1; min-width: 0; padding: 16rpx; border-radius: 16rpx; background: #f4f7ef; }
+.meal-figure-value { font-size: 34rpx; font-weight: 700; color: var(--primary-dark); white-space: nowrap; }
+.meal-figure-unit { font-size: 22rpx; font-weight: 400; color: var(--sub); }
+.meal-figure-label { font-size: 23rpx; color: var(--sub); }
+button.dish-row { display: flex; align-items: center; gap: 20rpx; width: 100%; margin: 0; padding: 18rpx 0; border-top: 1rpx solid var(--border); border-radius: 0; background: transparent; color: var(--text); text-align: left; line-height: 1.5; font-weight: 400; }
+.dish-highlight { background: #f1f6ec; }
+.dish-thumb { width: 96rpx; height: 96rpx; border-radius: 16rpx; flex-shrink: 0; }
+.dish-body { flex: 1; min-width: 0; }
+.dish-name { font-size: 30rpx; font-weight: 600; word-break: break-all; }
+.dish-meta { font-size: 24rpx; color: var(--sub); }
+.dish-pending { color: var(--warn-text); }
+.record-chevron { color: var(--muted); font-size: 36rpx; }

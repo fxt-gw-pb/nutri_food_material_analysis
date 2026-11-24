@@ -1,3 +1,4 @@
+<import src="/templates/intake.wxml" />
 <view class="container with-dock evaluation-page">
   <view wx:if="{{!loaded}}" class="card state-card">
     <block wx:if="{{loadError}}"><view class="state-title">暂时无法读取这一餐</view><view class="state-copy">{{loadError}}</view><button class="btn btn-secondary" bindtap="loadMeal">重新加载</button></block>
@@ -26,6 +27,10 @@
       <view wx:if="{{row.confirmed}}" class="intake reveal">估算摄入 <text>{{row.consumedG}} g</text></view>
     </view>
     <view wx:if="{{rows.length === 0}}" class="card">没有需要评估的食材，可以完成这一餐。</view>
+    <view wx:if="{{intake}}" class="card summary-card evaluation-intake">
+      <view class="dish-head"><view class="title-sm">这道菜吃下的</view><view class="tag match-tag">{{remaining ? '按已确认的食材' : '全部已确认'}}</view></view>
+      <template is="intake-summary" data="{{...intake, textureOpen, nutrientOpen}}" />
+    </view>
     <view class="card evaluation-summary"><view class="submit-identity">本次保存到参与者 <text class="submit-code">{{participantCode || '未记录编号'}}</text></view><view class="intake">已确认食材的估算摄入 <text>{{totalConsumedG}} g</text></view><view class="save-status">{{saveText}}</view></view>
     <view class="disclaimer">摄入重量由图像估重和您填写的比例换算，仅供饮食记录参考。</view>
     <view class="action-dock"><view class="dock-hint">{{remaining ? '还有 ' + remaining + ' 种食材待确认' : '每种食材已确认，可以保存评估'}}</view><button class="btn btn-primary" hover-class="btn-hover" bindtap="completeEvaluation" loading="{{busy}}" disabled="{{busy || remaining > 0}}">{{busy ? '正在保存…' : '完成评估'}}</button></view>

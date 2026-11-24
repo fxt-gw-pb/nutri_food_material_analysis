@@ -36,3 +36,5 @@ button.guide-toggle { display: flex; align-items: center; justify-content: space
 .home-disclaimer text { display: block; }
 @keyframes float-plate { 50% { transform: translateY(-8rpx) rotate(3deg); } }
 @media (prefers-reduced-motion: reduce) { .hero-plate { animation: none; } }
+button.shortcut-daily { display: flex; align-items: center; gap: 22rpx; width: 100%; flex: none; margin-top: 20rpx; background: #eef3f1; border-color: #d9e6e0; }
+.daily-entry-text { flex: 1; min-width: 0; }

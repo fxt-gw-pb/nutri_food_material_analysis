@@ -152,6 +152,25 @@ export interface ConsumptionEvaluation {
   totalConsumedG: number;
   updatedAt: number;
   completedAt?: number;
+  /**
+   * 完成评估时按当时算法算出的摄入汇总（质量加权切割质构 + 营养素），供后台查询导出。
+   * 小程序页面不读它，始终按当前算法重算；旧记录没有此字段。
+   */
+  intake?: StoredIntake;
+}
+
+/** 一道菜的摄入汇总。质构存分子分母，多道菜可直接相加后再除，得到整餐、全天的加权值。 */
+export interface StoredIntake {
+  algorithmVersion: string;
+  /** 已评估食材的摄入总质量（g） */
+  consumedG: number;
+  /** 切割测试各指标：Σ(摄入质量 × 指标值) 与参与计算的摄入质量（缺测食材不计入分母） */
+  textureSums: Partial<Record<'hardness' | 'fracturability' | 'adhesiveness' | 'springiness' | 'chewiness' | 'gumminess' | 'cohesiveness' | 'resilience', { weightedSum: number; grams: number }>>;
+  /** 各营养素实际摄入量，单位见 data/nutritionDb.ts 的 NUTRIENTS */
+  nutrients: Record<string, number>;
+  /** 匹配到《中国食物成分表》的摄入质量（g） */
+  nutritionG: number;
+  ingredients: { name: string; consumedG: number; cutRecordId: string; nutritionCode: string; nutritionName: string }[];
 }
 
 export interface MealAuditSnapshot {

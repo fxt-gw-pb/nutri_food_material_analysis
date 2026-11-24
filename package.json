@@ -1,7 +1,7 @@
 {
   "name": "nutri-food-material-analysis",
-  "version": "2026.10.15",
-  "description": "微信小程序：食材识别、估重与饭后摄入评估",
+  "version": "2026.11.24",
+  "description": "微信小程序：食材识别、估重、饭后摄入评估与质构、营养汇总",
   "private": true,
   "scripts": {
     "type-check": "tsc --noEmit",
@@ -10,6 +10,7 @@
     "export:cloud": "node scripts/export-cloud.cjs",
     "export:full": "node scripts/export-full.cjs",
     "export:single": "node scripts/export-single.cjs",
+    "build:nutrition": "python3 scripts/build-nutrition-db.py",
     "export:demo": "node scripts/export-meals.cjs --input examples/export/meal_records.json --out exports/demo"
   },
   "devDependencies": {

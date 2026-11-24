@@ -47,5 +47,6 @@ export const saveExcludedIngredients = impl.saveExcludedIngredients;
 export const saveConsumptionEvaluation = impl.saveConsumptionEvaluation;
 export const saveAuditSnapshot = impl.saveAuditSnapshot;
 export const finishMealSession = impl.finishMealSession;
+export const getMealsInRange = impl.getMealsInRange;
 
 export type { CreateMealAnalysisParams, AnalysisProgress } from './mealService.api';

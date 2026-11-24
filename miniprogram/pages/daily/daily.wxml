@@ -1,0 +1,78 @@
+<import src="/templates/intake.wxml" />
+<view class="container daily-page">
+  <view class="page-heading reveal">
+    <view class="eyebrow">吃下去的，都算一算</view>
+    <view class="title-lg">每日汇总</view>
+    <view class="page-description">按实际吃下的重量，计算这一天、每一餐的质构系数和营养摄入。</view>
+  </view>
+
+  <view class="card daily-filter">
+    <view class="participant-identity">
+      <view class="participant-label">参与者编号（ID）</view>
+      <text class="participant-code" user-select="true">{{participantCode || '未填写编号'}}</text>
+    </view>
+    <view class="code-row">
+      <input class="code-input" value="{{codeInput}}" maxlength="32" placeholder="查看其他编号" placeholder-class="input-placeholder" bindinput="onCodeInput" bindconfirm="applyCode" aria-label="要查看的参与者编号" />
+      <button class="btn btn-secondary code-apply" hover-class="btn-hover" bindtap="applyCode">查看</button>
+    </view>
+    <view class="date-bar">
+      <button class="date-step" hover-class="surface-hover" bindtap="prevDay" disabled="{{loading}}" aria-label="前一天">‹ 前一天</button>
+      <picker mode="date" value="{{dateKey}}" end="{{todayKey}}" bindchange="onDatePick">
+        <view class="date-current" aria-label="选择日期">{{dateText}}</view>
+      </picker>
+      <button class="date-step" hover-class="surface-hover" bindtap="nextDay" disabled="{{loading || isToday}}" aria-label="后一天">后一天 ›</button>
+    </view>
+  </view>
+
+  <view wx:if="{{!participantCode}}" class="card state-card">
+    <view class="state-title">先填写参与者编号</view>
+    <view class="state-copy">在上方输入编号后点「查看」，或回首页填写。</view>
+  </view>
+  <view wx:elif="{{loadError}}" class="card state-card">
+    <view class="state-title">这一天的记录暂时没加载出来</view>
+    <view class="state-copy">{{loadError}}</view>
+    <button class="btn btn-secondary" loading="{{loading}}" disabled="{{loading}}" bindtap="load">重新加载</button>
+  </view>
+  <view wx:elif="{{!loaded || (loading && !hasRecords)}}" class="card state-card"><view class="loading-mark"></view><view class="state-title">正在汇总</view></view>
+  <view wx:elif="{{!hasRecords}}" class="card state-card">
+    <view class="state-icon"><image class="ui-icon" src="/assets/icons/plate.svg" /></view>
+    <view class="state-title">这一天没有识别记录</view>
+    <view class="state-copy">只统计本手机上为这位参与者拍的菜。</view>
+  </view>
+  <block wx:else>
+    <view wx:if="{{pendingCount}}" class="card pending-card">
+      <view class="pending-title">还有 {{pendingCount}} 道菜没做饭后评估，暂未计入</view>
+      <button wx:for="{{pendingDishes}}" wx:key="analysisId" class="pending-item" hover-class="surface-hover" data-id="{{item.analysisId}}" data-evaluated="{{false}}" bindtap="openDish">
+        <text class="pending-name">{{item.timeText}} {{item.dishName}}</text><text class="pending-go">去评估 ›</text>
+      </button>
+    </view>
+
+    <view wx:if="{{day}}" class="card summary-card day-card reveal">
+      <view class="dish-head"><view class="title-md">全天</view><view class="tag match-tag">{{evaluatedCount}} 道菜 · 吃下 {{day.consumedG}} g</view></view>
+      <template is="intake-summary" data="{{...day, textureOpen, nutrientOpen}}" />
+    </view>
+    <view wx:else class="card state-card"><view class="state-title">这一天还没有完成评估的菜</view><view class="state-copy">饭后评估完成后，这里会算出全天的结果。</view></view>
+
+    <view class="section-caption">逐餐</view>
+    <view wx:for="{{meals}}" wx:key="label" wx:for-item="meal" class="card meal-card">
+      <view class="dish-head"><view class="title-sm">{{meal.label}}</view><text class="muted">{{meal.dishCount}} 道菜<text wx:if="{{meal.evaluatedCount}}"> · 吃下 {{meal.summary.consumedG}} g</text></text></view>
+      <view wx:if="{{meal.evaluatedCount}}" class="meal-figures">
+        <view class="meal-figure"><view class="meal-figure-value">{{meal.summary.hasTexture ? meal.summary.hardnessText : '—'}}<text class="meal-figure-unit"> gf</text></view><view class="meal-figure-label">切割硬度{{meal.summary.hardnessLabel ? ' · ' + meal.summary.hardnessLabel : ''}}</view></view>
+        <view class="meal-figure"><view class="meal-figure-value">{{meal.summary.hasNutrition ? meal.summary.energyText : '—'}}<text class="meal-figure-unit"> kcal</text></view><view class="meal-figure-label">能量</view></view>
+        <view class="meal-figure"><view class="meal-figure-value">{{meal.summary.hasNutrition ? meal.summary.mainNutrients[1].valueText : '—'}}<text class="meal-figure-unit"> g</text></view><view class="meal-figure-label">蛋白质</view></view>
+      </view>
+      <button wx:for="{{meal.dishes}}" wx:key="analysisId" wx:for-item="dish" class="dish-row {{dish.highlight ? 'dish-highlight' : ''}}" hover-class="surface-hover" data-id="{{dish.analysisId}}" data-evaluated="{{dish.evaluated}}" bindtap="openDish">
+        <image wx:if="{{dish.imageUrl}}" class="dish-thumb" src="{{dish.imageUrl}}" mode="aspectFill" />
+        <view wx:else class="dish-thumb thumb-placeholder"><image class="ui-icon" src="/assets/icons/plate.svg" /></view>
+        <view class="dish-body">
+          <view class="dish-name">{{dish.dishName}}</view>
+          <view class="dish-meta" wx:if="{{dish.evaluated}}">{{dish.timeText}} · 吃下 {{dish.consumedG}} g<text wx:if="{{dish.hardnessText}}"> · 硬度 {{dish.hardnessText}}</text><text wx:if="{{dish.energyText}}"> · {{dish.energyText}}</text></view>
+          <view class="dish-meta dish-pending" wx:else>{{dish.timeText}} · 待评估，未计入</view>
+        </view>
+        <text class="record-chevron">›</text>
+      </button>
+    </view>
+  </block>
+
+  <view class="disclaimer">质构系数按「Σ(摄入质量 × 切割实验质构参数) ÷ Σ摄入质量」计算，只用切割测试数据，缺测的食物不计入分母；全天把当天所有餐次的食物合在一起重新加权，不是各餐结果的平均。营养素按《中国食物成分表标准版（第 6 版）》每 100 g 可食部含量换算，未计烹调用油和盐。重量来自图像估算与饭后填写的比例，仅供饮食记录参考。</view>
+</view>

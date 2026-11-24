@@ -1,3 +1,4 @@
+<import src="/templates/intake.wxml" />
 <view class="container with-dock meal-page">
   <view wx:if="{{!loaded}}" class="card state-card">
     <block wx:if="{{loadError}}"><view class="state-title">暂时无法读取记录</view><view class="state-copy">{{loadError}}</view><button class="btn btn-secondary" bindtap="loadMeal">重新加载</button></block>
@@ -31,6 +32,11 @@
     </view>
   </view>
 
+  <view wx:if="{{intake}}" class="card summary-card detail-intake">
+    <view class="dish-head"><view class="title-md">这道菜吃下的</view><view class="tag match-tag">吃下 {{intake.consumedG}} g</view></view>
+    <template is="intake-summary" data="{{...intake, textureOpen, nutrientOpen}}" />
+    <button wx:if="{{participantCode}}" class="btn btn-secondary daily-link" hover-class="btn-hover" bindtap="goDaily">看这一天的汇总</button>
+  </view>
   <view class="ingredient-heading"><view class="title-sm">逐一看看食材</view><text class="muted">{{totalCount}} 种食材</text></view>
   <!-- 逐食材数据 -->
   <view wx:for="{{ingredients}}" wx:key="name" wx:for-item="ing" wx:for-index="i" class="card ing-card">

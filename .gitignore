@@ -41,3 +41,7 @@ miniprogram_npm/
 /logo/
 .claude/settings.local.json
 /交付/*.jpg
+
+# 《中国食物成分表》提取结果：受原书版权约束，只留在本机（重新生成见 docs/release-2026-11-24.md）
+/scripts/source/中国食物成分表第6版_表一.csv
+/miniprogram/data/nutritionDb.data.ts
