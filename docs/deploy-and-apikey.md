@@ -83,15 +83,15 @@
 ### 换成别家的模型怎么办
 
 如果新 Key 不是阿里云百炼（DashScope）的，光换环境变量不够，还要改
-`cloudfunctions/analyzeMeal/index.js` 顶部这两行，然后重新部署云函数：
+`cloudfunctions/analyzeMeal/vision.js` 的接入配置、模型参数与返回解析，并重新部署云函数：
 
 ```js
 const DASHSCOPE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
-const MODEL = 'qwen-vl-max';
+const TARGET_MODEL = 'qwen3.8-max-0902';
 ```
 
 它用的是 OpenAI 兼容的 `/chat/completions` 协议，换成同样兼容该协议的多模态服务
-只需改这两个常量 + 环境变量名。
+需要同时验证图片输入、JSON 输出、超时和份量校准，不能只改模型名称。当前同厂商回退可把云函数环境变量 `QWEN_MODEL` 设为 `qwen-vl-max`，会使用原 v5 提示词并跳过新模型份量校准。
 
 > **安全底线**：Key 只能待在云函数环境变量里。永远不要写进 `miniprogram/` 下的任何
 > 文件、不要写进 `config.ts`、不要提交进仓库——小程序代码包是会下发到用户手机上的。

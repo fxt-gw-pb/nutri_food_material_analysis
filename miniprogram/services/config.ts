@@ -16,6 +16,8 @@ export const CONFIG = {
   useCloud: true,
   /** 负责分析的云函数名 */
   analyzeFunctionName: 'analyzeMeal',
+  /** 随访问卷：提交校验、记录查询与去重 */
+  questionnaireFunctionName: 'questionnaire',
   /** 云存储中菜品照片的目录前缀 */
   uploadDir: 'meal-images/',
 };

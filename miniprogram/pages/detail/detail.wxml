@@ -1,19 +1,23 @@
-<view class="container">
-  <view class="estimate-banner">质构数据为同类食材实测参考值</view>
-
-  <view class="card meal-head">
-    <image wx:if="{{imageUrl}}" class="meal-img" src="{{imageUrl}}" mode="aspectFill" />
-    <view wx:else class="meal-img thumb-placeholder">🍽️</view>
-    <view class="meal-meta">
-      <view class="muted">{{dateText}}</view>
-      <view class="sub"><text class="tag">{{mealTypeText}}</text> · 识别为 {{recognizedName}}</view>
-      <view class="sub" wx:if="{{cookingMethod}}">烹饪方式 {{cookingMethod}} · 可信度 {{confidenceText}}</view>
-    </view>
+<view class="container with-dock meal-page">
+  <view wx:if="{{!loaded}}" class="card state-card">
+    <block wx:if="{{loadError}}"><view class="state-title">暂时无法读取记录</view><view class="state-copy">{{loadError}}</view><button class="btn btn-secondary" bindtap="loadMeal">重新加载</button></block>
+    <block wx:else><view class="loading-mark"></view><view class="state-title">正在读取菜品记录</view><view class="state-copy">照片与食材信息马上就好</view></block>
   </view>
-
-  <view class="card">
+  <block wx:else>
+  <view class="page-heading reveal"><view class="eyebrow">饮食记录详情</view><view class="title-lg">看看这一道菜</view></view>
+  <view class="card meal-overview">
+    <view class="meal-head">
+      <image wx:if="{{imageUrl}}" class="meal-img" src="{{imageUrl}}" mode="aspectFill" bindtap="previewImage" aria-label="查看菜品原图" />
+      <view wx:else class="meal-img thumb-placeholder"><image class="ui-icon" src="/assets/icons/plate.svg" /></view>
+      <view class="meal-meta"><view class="recognized-name">{{recognizedName}}</view><view class="muted">{{dateText}} · {{mealTypeText}}</view><view class="meal-method" wx:if="{{cookingMethod}}">{{cookingMethod}} · 识别可信度 {{confidenceText}}</view></view>
+    </view>
+    <view class="participant-identity"><view class="participant-label">参与者编号（ID）</view><text class="participant-code" user-select="true">{{participantCode || '未记录编号'}}</text></view>
+    <view class="estimate-banner">质构为同类食材实测参考 · 重量为图像估算</view>
+    <button wx:if="{{!evaluationCompleted || totalCount === 0}}" class="text-button retake-inline" bindtap="retake" loading="{{busy}}" disabled="{{busy || !loaded}}"><image class="ui-icon icon-sm" src="/assets/icons/refresh.svg" />我要重新拍照</button>
+  </view>
+  <view class="card summary-card">
     <view class="dish-head">
-      <view class="title-md">这道菜的食材</view>
+      <view class="title-md">这道菜，一眼了解</view>
       <view class="tag match-tag">{{totalCount}} 种食材</view>
     </view>
     <view wx:if="{{matchedCount > 0}}" class="summary-line">
@@ -27,8 +31,9 @@
     </view>
   </view>
 
+  <view class="ingredient-heading"><view class="title-sm">逐一看看食材</view><text class="muted">{{totalCount}} 种食材</text></view>
   <!-- 逐食材数据 -->
-  <view wx:for="{{ingredients}}" wx:key="name" wx:for-item="ing" class="card">
+  <view wx:for="{{ingredients}}" wx:key="name" wx:for-item="ing" wx:for-index="i" class="card ing-card">
     <view class="row-head">
       <text class="ing-name">{{ing.name}}</text>
       <button class="delete-ingredient" size="mini" data-name="{{ing.name}}" bindtap="removeIngredient" disabled="{{busy || !loaded}}" aria-label="删除{{ing.name}}">删除</button>
@@ -39,6 +44,7 @@
       <text class="muted weight-range">（{{ing.weightRangeText}}）</text>
     </view>
 
+    <view wx:if="{{ing.reviewNote}}" class="match-review-note">{{ing.reviewNote}}</view>
     <block wx:if="{{ing.matched}}">
 
       <view wx:for="{{ing.readings}}" wx:key="testMode" wx:for-item="rd" class="reading-block">
@@ -57,24 +63,30 @@
           <text class="metric-pill">{{rd.adhesivenessText}}</text>
         </view>
 
-        <view class="metric-table">
+        <view wx:if="{{ing.detailOpen}}" class="metric-table reveal">
           <view wx:for="{{rd.metrics}}" wx:key="label" wx:for-item="m" class="metric-line">
             <text class="metric-name muted">{{m.label}}</text>
             <text class="metric-num">{{m.value}}<text class="metric-unit muted"> {{m.unit}}</text></text>
           </view>
         </view>
       </view>
+      <button class="alt-toggle-sm" data-index="{{i}}" bindtap="toggleDetail" aria-expanded="{{ing.detailOpen}}">{{ing.detailOpen ? '收起详细指标 −' : '查看九项完整指标 ＋'}}</button>
     </block>
     <view wx:else class="unmatched">库里没有足够接近的实测数据</view>
   </view>
 
   <view wx:if="{{totalCount === 0}}" class="card unmatched">这条记录没有识别出食材</view>
 
-  <view class="disclaimer">
-    重量为图像估算，可能存在误差，不等同于真实称重；质构数据来自实验室对同类食材样本的 TPA 全质构测试（切割 / 下压两种模式），仅供参考软硬与咀嚼难度，不等同于您这一份菜的实测值，也不构成医学建议。
+  <view class="disclaimer">重量为图像估算，不等同于真实称重；质构数据来自实验室对同类食材的 TPA 测试，仅供参考软硬与咀嚼难度，不等同于这份菜的实测值，也不构成医学建议。</view>
+  <view class="action-dock">
+    <block wx:if="{{mealSessionId && !sessionFinished}}">
+      <view class="dock-hint">这顿饭还有菜没拍？可以继续添加。</view>
+      <view class="dock-actions"><button class="btn btn-secondary" bindtap="continueMeal" disabled="{{busy || !loaded}}">继续拍下一道</button><button class="btn btn-primary" bindtap="finishMeal" loading="{{busy}}" disabled="{{busy || !loaded}}">拍完了</button></view>
+    </block>
+    <block wx:else>
+      <view class="dock-hint">{{evaluationCompleted ? '评估已完成，可查看或修改食用比例' : '吃完饭后，记录每种食材吃了多少'}}</view>
+      <button wx:if="{{totalCount > 0}}" class="btn btn-primary" bindtap="goEvaluation" disabled="{{busy || !loaded}}">{{evaluationCompleted ? '查看饭后评估' : '填写饭后评估'}}</button><view wx:else class="muted evaluation-hint">这条记录没有需要评估的食材</view>
+    </block>
   </view>
-  <view wx:if="{{totalCount > 0}}" class="evaluation-entry">
-    <button class="btn btn-primary" bindtap="goEvaluation" disabled="{{busy || !loaded}}">饭后评估</button>
-    <view class="muted evaluation-hint">{{evaluationCompleted ? '已完成 · 估算摄入 ' + totalConsumedG + ' g' : '吃完饭后，记录每种食材吃了多少'}}</view>
-  </view>
+  </block>
 </view>

@@ -1,56 +1,31 @@
-.record {
-  display: flex;
-  align-items: stretch;
-}
-.record-img {
-  width: 140rpx;
-  height: 140rpx;
-  border-radius: 16rpx;
-  margin-right: 24rpx;
-  flex-shrink: 0;
-}
-.record-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.record-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-.record-summary {
-  font-size: 30rpx;
-  font-weight: 600;
-  margin-right: 16rpx;
-  flex: 1;
-}
-.record-stats {
-  display: flex;
-  gap: 28rpx;
-  margin: 6rpx 0;
-}
-.record-texture {
-  color: var(--sub);
-  font-size: 26rpx;
-}
-.record-texture-value {
-  color: var(--primary-dark);
-  font-weight: 700;
-}
-
-.empty {
-  padding-top: 160rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.empty-icon { font-size: 96rpx; }
-.empty-text { color: var(--sub); margin: 24rpx 0 40rpx; }
-.empty-btn { padding: 0 64rpx; }
-
-.list-tip {
-  text-align: center;
-  margin-top: 8rpx;
-}
+.heading-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; }
+.heading-row .text-button { min-height: 64rpx; padding: 8rpx 0; }
+.search-box { display: flex; align-items: center; gap: 16rpx; height: 96rpx; padding: 0 24rpx; border: 1rpx solid #d6e0ce; border-radius: 22rpx; background: #fff; }
+.search-input { flex: 1; min-width: 0; height: 88rpx; font-size: 30rpx; }
+button.clear-search { width: 64rpx; height: 88rpx; margin: 0 -12rpx 0 0; padding: 0; line-height: 88rpx; color: var(--sub); background: transparent; }
+.filters { display: flex; gap: 8rpx; padding: 8rpx; margin-top: 24rpx; border-radius: 22rpx; background: #e9eee2; }
+button.filter { flex: 1; width: 0; max-width: none; margin: 0; padding: 16rpx 4rpx; min-height: 84rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; border-radius: 16rpx; color: var(--sub); background: transparent; font-size: 28rpx; line-height: 1.5; font-weight: 500; transition: background 160ms ease; }
+.filter text { font-size: 23rpx; }
+button.filter-active { color: var(--primary-dark); background: #fff; box-shadow: 0 4rpx 12rpx rgba(34,67,48,.05); font-weight: 600; }
+.list-caption { font-size: 23rpx; color: var(--sub); margin: 18rpx 4rpx 24rpx; }
+button.record { display: block; width: 100%; max-width: none; text-align: left; color: var(--text); line-height: 1.6; font-weight: 400; padding: 26rpx; border: 1rpx solid var(--border); border-left: 6rpx solid #c4a05c; }
+button.record-evaluated { border-left-color: #689c76; }
+.record-identity { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8rpx 16rpx; padding-bottom: 18rpx; margin-bottom: 22rpx; border-bottom: 1rpx solid var(--border); }
+.record-identity .participant-label { color: var(--sub); font-size: 24rpx; }
+.record-identity .participant-code { font-size: 29rpx; color: var(--primary-dark); }
+.record-main { display: flex; align-items: center; gap: 22rpx; }
+.record-img { width: 126rpx; height: 126rpx; border-radius: 20rpx; flex-shrink: 0; }
+.record-body { flex: 1; min-width: 0; }
+.record-summary { font-size: 34rpx; font-weight: 600; word-break: break-all; }
+.record-date { color: var(--sub); font-size: 24rpx; margin-top: 6rpx; }
+.record-ingredients { color: var(--sub); font-size: 25rpx; margin-top: 6rpx; word-break: break-all; }
+.record-chevron { color: #879578; font-size: 40rpx; }
+.record-footer { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12rpx; margin-top: 22rpx; }
+.record-texture { color: var(--primary-dark); font-size: 26rpx; font-weight: 500; }
+.evaluation-status { border-radius: 12rpx; padding: 6rpx 14rpx; font-size: 24rpx; font-weight: 600; }
+.evaluation-status-evaluated { background: var(--primary-soft); color: var(--primary-dark); }
+.evaluation-status-pending { background: var(--warn-bg); color: var(--warn-text); }
+.evaluation-status-meta { margin-top: 12rpx; font-size: 24rpx; color: var(--sub); }
+.list-tip { text-align: center; margin-top: 16rpx; }
+.skeleton-card { min-height: 230rpx; }
+@media (prefers-reduced-motion: reduce) { button.filter { transition: none; } }

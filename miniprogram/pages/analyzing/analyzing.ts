@@ -7,6 +7,7 @@ const STATUS_TEXT: Record<AnalysisStatus, string> = {
   preprocessing: '正在预处理图片',
   recognizing: '正在识别菜品与食材',
   completed: '正在匹配质构数据',
+  discarded: '已取消本次识别',
   failed: '识别失败',
 };
 
@@ -94,6 +95,10 @@ Page({
           this.disposed = true;
           this.clearTimer();
           wx.redirectTo({ url: `/pages/result/result?analysisId=${this.analysisId}` });
+        } else if (status === 'discarded') {
+          this.disposed = true;
+          this.clearTimer();
+          wx.reLaunch({ url: '/pages/upload/upload' });
         } else if (status === 'failed') {
           this.disposed = true;
           this.clearTimer();

@@ -1,0 +1,59 @@
+import { QuestionnaireQuestion } from '../types/questionnaire';
+
+// 来源：1015新增问卷/小程序随访表(1).docx。修改题目时须升级版本，
+// 同步 cloudfunctions/questionnaire/schema.json，并运行问卷内容一致性测试。
+export const QUESTIONNAIRE_VERSION = '2026-10-15-v1';
+export const QUESTIONNAIRE_TITLE = '每周随访问卷';
+export const QUESTIONNAIRE_QUESTIONS: QuestionnaireQuestion[] = [
+  {
+    id: 'q1', multiple: false,
+    title: '最近一周，您是否因为牙齿、义齿、口干、咀嚼或吞咽问题，而少吃或不吃某些食物？',
+    options: [
+      { value: 'never', label: '从不' }, { value: 'sometimes', label: '偶尔' },
+      { value: 'often', label: '经常' }, { value: 'almost_always', label: '几乎总是' },
+    ],
+  },
+  {
+    id: 'q2', multiple: false,
+    title: '最近一周，您是否把食物切小、切碎或剁碎后再吃？',
+    options: [
+      { value: 'never', label: '从不' }, { value: 'sometimes', label: '偶尔' },
+      { value: 'often', label: '经常' }, { value: 'almost_every_meal', label: '几乎每餐' },
+    ],
+  },
+  {
+    id: 'q3', multiple: false,
+    title: '最近一周，您是否把肉类或蔬菜炖得更软、煮得更烂后再吃？',
+    options: [
+      { value: 'never', label: '从不' }, { value: 'sometimes', label: '偶尔' },
+      { value: 'often', label: '经常' }, { value: 'almost_every_meal', label: '几乎每餐' },
+    ],
+  },
+  {
+    id: 'q4', multiple: false,
+    title: '最近一周，您是否选择粥、软饭、面条、蒸蛋、豆腐等较软食物来替代普通饭菜？',
+    options: [
+      { value: 'never', label: '从不' }, { value: 'sometimes', label: '偶尔' },
+      { value: 'often', label: '经常' }, { value: 'almost_every_day', label: '几乎每天' },
+    ],
+  },
+  {
+    id: 'q5', multiple: false,
+    title: '最近一周，您按照膳食建议调整食物软硬和吃法的程度如何？',
+    options: [
+      { value: 'none', label: '没有执行' }, { value: 'little', label: '少量执行' },
+      { value: 'most', label: '大部分执行' }, { value: 'all', label: '基本完全执行' },
+    ],
+  },
+  {
+    id: 'q6', multiple: true, exclusiveValue: 'none',
+    title: '最近一周是否出现以下情况？',
+    options: [
+      { value: 'choking', label: '经常呛咳' },
+      { value: 'swallowing_difficulty', label: '吞咽明显困难' },
+      { value: 'eating_or_training_pain', label: '进食或训练疼痛' },
+      { value: 'gastrointestinal_discomfort', label: '明显胃肠不适' },
+      { value: 'none', label: '都没有' },
+    ],
+  },
+];

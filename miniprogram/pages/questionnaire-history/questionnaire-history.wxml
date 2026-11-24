@@ -1,0 +1,27 @@
+<view class="container questionnaire-history">
+  <view class="page-heading reveal"><view class="eyebrow">每周随访</view><view class="title-lg">留下的每一次近况</view><view class="page-description">回看问卷，了解最近的进食情况。</view></view>
+  <view wx:if="{{participantCode}}" class="card">
+    <view class="section-head"><view class="title-sm">问卷记录</view><image class="ui-icon" src="/assets/icons/questionnaire.svg" /></view>
+    <view class="participant-identity">
+      <view class="participant-label">参与者编号（ID）</view>
+      <text class="participant-code">{{participantCode}}</text>
+    </view>
+    <view class="history-hint">显示当前微信账号为此参与者提交的问卷。点击记录可查看当时的答案。</view>
+    <view wx:if="{{mockMode}}" class="history-hint">本地演示模式，仅显示此手机的演示记录。</view>
+    <button class="btn btn-secondary new-button" bindtap="goQuestionnaire">填写一份问卷</button>
+  </view>
+  <view wx:if="{{error}}" class="card error-state">
+    <view>{{error}}</view>
+    <button wx:if="{{participantCode}}" class="btn btn-secondary state-button" disabled="{{loading}}" bindtap="retry">重试</button>
+    <button wx:else class="btn btn-secondary state-button" bindtap="goHome">返回首页</button>
+  </view>
+  <view wx:elif="{{loaded && !loading && items.length === 0}}" class="card state-card"><view class="state-icon"><image class="ui-icon" src="/assets/icons/questionnaire.svg" /></view><view class="state-title">还没有随访记录</view><view class="state-copy">填写第一份问卷，记下这一周的进食情况。</view></view>
+  <button wx:for="{{items}}" wx:key="responseId" class="card record-button" hover-class="surface-hover" data-id="{{item.responseId}}" bindtap="goDetail">
+    <view class="record-top"><view class="record-title">{{item.title}}</view><text class="tag">✓ 已提交</text></view>
+    <view class="record-date">{{item.dateText}}（北京时间）</view>
+    <view class="record-link">查看这次的 6 题答案 <text>→</text></view>
+  </button>
+  <view wx:if="{{loading}}" class="list-status"><view class="loading-mark"></view>正在加载记录…</view>
+  <button wx:elif="{{hasMore && !error}}" class="btn btn-secondary" bindtap="loadMore">加载更多</button>
+  <view wx:elif="{{loaded && items.length > 0 && !error}}" class="list-status">已显示全部问卷记录</view>
+</view>

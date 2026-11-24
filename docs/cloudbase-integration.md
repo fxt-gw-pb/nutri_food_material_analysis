@@ -33,6 +33,7 @@ CloudBase
 
 ### 云数据库
 - `meal_records`：按「单次识别记录」存储，结构内嵌 `dish` 与其 `ingredients`，避免拆分过多集合。
+- `questionnaire_responses`：独立的随访问卷记录，设为“仅管理员可读写”，通过新增 `questionnaire` 云函数提交和查询。部署、复合索引及字段定义见 [10 月 15 日问卷说明](release-2026-10-15.md)。
 - `model_logs`（可选）：记录每次模型调用的输入摘要、耗时、token、版本，便于排查与迭代。
 
 ## 3. `meal_records` 文档结构
@@ -45,8 +46,13 @@ CloudBase
   _openid: string,          // 用户标识（数据库自动注入）
   imageFileId: string,      // 云存储 fileID
   imageUrl: string,         // 临时可访问地址（按需换取）
+  participantCode: string,  // 本次识别的参与者编码快照（保留前导零）
+  mealSessionId?: string,   // 同一顿饭的多道菜共用的会话标识
+  mealSessionFinishedAt?: number, // 用户结束本顿饭拍摄的时间
   status: AnalysisStatus,   // pending | preprocessing | recognizing
-                            // | completed | failed
+                            // | completed | discarded | failed
+  discardedAt?: number,      // 用户选择重拍时的作废时间
+  evaluationStatus?: 'pending' | 'completed' | 'discarded',
   modelName: string,        // 千问模型名
   promptVersion: string,    // prompt 版本
   result: {                 // 识别结果，嵌套存储
@@ -110,3 +116,7 @@ service 层已拆分为契约 + 两套实现，由 `config.ts` 的 `useCloud` �
 - 前端绝不包含千问 API Key；Key 仅存在于云函数环境变量（`.env` 已被忽略）。
 - CloudBase 环境 ID 会下发到客户端、非密钥，`config.ts` 纳入版本管理；`project.private.config.json` 为工具本地配置，已被忽略。
 - 质构数据始终标注为「同类菜肴样本的实验室实测参考值」，不得表现为对用户这一份菜的实测，也不构成医学建议。
+
+## 7. 管理员数据导出
+
+完整步骤见 [识别数据导出](./data-export.md)。支持后台导出 `meal_records` 全字段JSON后运行 `npm run export:data`，以及安装并登录官方CLI后运行 `npm run export:cloud`。两种入口复用同一转换逻辑，输出识别、食材、质构三张CSV及字段字典和摘要。管理权限仅用于电脑端导出，不改变小程序集合权限或云函数。

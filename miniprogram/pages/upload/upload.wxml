@@ -1,64 +1,32 @@
-<view class="container">
-  <!-- 图片选择 / 预览 -->
-  <view class="card">
-    <view class="title-sm">菜品照片</view>
-    <view wx:if="{{!imageUrl}}" class="picker" hover-class="btn-hover" bindtap="chooseImage">
-      <view class="picker-icon">📷</view>
-      <view class="picker-text">拍照或从相册选择</view>
-    </view>
-    <view wx:else class="preview">
-      <image class="preview-img" src="{{imageUrl}}" mode="aspectFill" />
-      <view class="preview-actions">
-        <view class="btn btn-ghost btn-sm" hover-class="btn-hover" bindtap="chooseImage">重新选择</view>
-        <view class="btn btn-ghost btn-sm" hover-class="btn-hover" bindtap="removeImage">删除</view>
-      </view>
+<view class="container with-dock upload-page">
+  <view class="page-heading reveal"><view class="eyebrow">记录这一餐</view><view class="title-lg">先拍下一道菜</view><view class="page-description">确认编号、放好餐盘，剩下的交给我们。</view></view>
+  <view class="card profile-card">
+    <view class="section-title"><text class="section-number">1</text>确认参与者</view>
+    <input class="profile-input" type="text" maxlength="32" value="{{participantCode}}" disabled="{{submitting}}" placeholder="请输入参与者编号（ID）" placeholder-class="input-placeholder" aria-label="参与者编号（ID）" bindinput="onParticipantCodeInput" />
+    <view class="muted profile-hint">请确认这份菜所属的编号，饭后评估将按此对应。</view>
+  </view>
+  <view class="card photo-card">
+    <view class="section-head"><view class="section-title"><text class="section-number">2</text>拍摄菜品</view><text class="tag tag-neutral">一次一道菜</text></view>
+    <button wx:if="{{!imageUrl}}" class="picker" hover-class="surface-hover" disabled="{{submitting}}" bindtap="chooseImage">
+      <view class="capture-frame"><image class="capture-icon" src="/assets/icons/camera.svg" /></view>
+      <view class="picker-text">拍照或从相册选择</view><view class="picker-hint">把整只餐盘放进画面里</view>
+    </button>
+    <view wx:else class="preview reveal">
+      <image class="preview-img" src="{{imageUrl}}" mode="aspectFit" bindtap="previewImage" aria-label="查看菜品照片大图" />
+      <view class="preview-badge"><image class="ui-icon icon-sm" src="/assets/icons/check.svg" />照片已就绪</view>
+      <view class="preview-actions"><button class="btn btn-secondary btn-sm" hover-class="btn-hover" disabled="{{submitting}}" bindtap="chooseImage">重新选择</button><button class="btn btn-ghost btn-sm" disabled="{{submitting}}" bindtap="removeImage">移除照片</button></view>
     </view>
   </view>
-
-  <!-- 餐盘直径：整张照片里唯一的真实尺度，估重全靠它 -->
   <view class="card">
-    <view class="title-sm">餐盘直径</view>
-    <view class="muted diameter-hint">照片里没有别的参照物，估重全靠这个尺寸，选准一点更准</view>
+    <view class="section-title"><text class="section-number">3</text>选择餐盘直径</view>
+    <view class="muted diameter-hint">从盘子一侧边缘量到另一侧。尺寸越准，估重越准。</view>
     <view class="chips">
-      <view
-        wx:for="{{diameterOptions}}"
-        wx:key="*this"
-        class="chip {{!useCustom && selectedDiameter === item ? 'chip-active' : ''}}"
-        data-value="{{item}}"
-        bindtap="selectDiameter"
-      >{{item}} cm</view>
-      <view class="chip {{useCustom ? 'chip-active' : ''}}" bindtap="enableCustom">自定义</view>
+      <button wx:for="{{diameterOptions}}" wx:key="*this" class="chip {{!useCustom && selectedDiameter === item ? 'chip-active' : ''}}" data-value="{{item}}" disabled="{{submitting}}" aria-label="{{item + '厘米' + (!useCustom && selectedDiameter === item ? '，已选择' : '')}}" bindtap="selectDiameter">{{item}}<text> cm</text></button>
+      <button class="chip {{useCustom ? 'chip-active' : ''}}" disabled="{{submitting}}" bindtap="enableCustom">自定义</button>
     </view>
-    <view wx:if="{{useCustom}}" class="custom-input">
-      <input
-        type="digit"
-        placeholder="输入直径"
-        value="{{customDiameter}}"
-        bindinput="onCustomInput"
-        class="custom-field"
-      />
-      <text class="custom-unit">cm</text>
-    </view>
+    <view wx:if="{{useCustom}}" class="custom-input reveal"><input type="digit" placeholder="输入直径" value="{{customDiameter}}" disabled="{{submitting}}" bindinput="onCustomInput" class="custom-field" aria-label="自定义餐盘直径，单位厘米" /><text class="custom-unit">cm</text></view>
   </view>
-
-  <!-- 拍摄提示 -->
-  <view class="card">
-    <view class="title-sm">拍摄提示</view>
-    <view class="tips">
-      <view wx:for="{{tips}}" wx:key="*this" class="tip">
-        <text class="tip-dot">·</text><text>{{item}}</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="disclaimer">
-    重量为按餐盘尺寸的图像估算，不等同于真实称重；质构数据来自实验室 TPA 全质构测试的菜肴样本，
-    用于参考同类菜品的软硬与咀嚼难度，不等同于您这一份菜的实测值。
-  </view>
-
-  <view
-    class="btn btn-primary submit {{!imageUrl ? 'btn-disabled' : ''}}"
-    hover-class="btn-hover"
-    bindtap="startAnalyze"
-  >开始识别</view>
+  <view class="photo-tips"><view class="tips-title"><image class="ui-icon icon-sm" src="/assets/icons/spark.svg" />这样拍，更清楚</view><view class="tips-grid"><view wx:for="{{tips}}" wx:key="*this" class="tip"><view class="tip-dot"></view><text>{{item}}</text></view></view></view>
+  <view class="disclaimer">重量为按餐盘尺寸的图像估算，不等同于真实称重；质构为同类食材实测参考，不等同于这份菜的实测值。</view>
+  <view class="action-dock"><view class="dock-hint">{{imageUrl ? '照片已准备好，确认餐盘尺寸后即可识别' : '请先选择一张清晰的菜品照片'}}</view><button class="btn btn-primary" hover-class="btn-hover" loading="{{submitting}}" disabled="{{!imageUrl || submitting}}" bindtap="startAnalyze">{{submitting ? '正在上传照片…' : '开始识别'}}<image wx:if="{{!submitting}}" class="ui-icon icon-sm" src="/assets/icons/camera-white.svg" /></button></view>
 </view>

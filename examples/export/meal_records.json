@@ -1,0 +1,43 @@
+[
+  {
+    "_id": "demo-completed", "participantCode": "001207", "mealSessionId": "demo-lunch",
+    "status": "completed", "evaluationStatus": "completed", "plateDiameterCm": 26,
+    "createdAt": 1790481600000, "updatedAt": 1790485200000,
+    "result": { "dish": { "dishName": "五香酱牛肉", "cookingMethod": "卤", "recognitionConfidence": "high",
+      "ingredients": [{ "name": "牛肉", "estimatedG": 200 }, { "name": "香菜", "estimatedG": 10 }] } },
+    "excludedIngredients": ["香菜"],
+    "consumption": { "percentages": { "牛肉": 50 }, "consumedGrams": { "牛肉": 50 }, "totalConsumedG": 50, "completedAt": 1790485200000 },
+    "auditSnapshot": {
+      "algorithmVersion": "2026-09-15-meat-half", "generatedAt": 1790485200000, "plateDiameterCm": 26, "totalG": 100,
+      "ingredients": [
+        { "name": "牛肉", "excluded": false, "grams": 100, "weightRange": "40–160 g", "weightConfidence": "low", "weightBasis": "演示：模型估重乘0.5",
+          "recordId": "t26", "matchedDish": "五香酱牛肉", "matchedIngredient": "牛腱子肉", "matchedCookingText": "卤", "matchReason": "演示匹配",
+          "sources": [
+            { "testMode": "切割测试", "source": "五香酱牛肉（TPA全质构切割测试）.xlsx" },
+            { "testMode": "下压测试", "source": "五香酱牛肉（TPA全质构下压测试）.xlsx" }
+          ] },
+        { "name": "香菜", "excluded": true, "grams": 10, "weightRange": "4–16 g", "weightConfidence": "low", "weightBasis": "演示估重", "recordId": "", "sources": [] }
+      ]
+    }
+  },
+  {
+    "_id": "demo-zero", "participantCode": "001207", "mealSessionId": "demo-lunch",
+    "status": "completed", "evaluationStatus": "completed", "createdAt": 1790481600001,
+    "result": { "dish": { "dishName": "黄瓜", "cookingMethod": "生食", "ingredients": [{ "name": "黄瓜", "estimatedG": 100 }] } },
+    "auditSnapshot": { "algorithmVersion": "demo", "totalG": 100, "ingredients": [{ "name": "黄瓜", "grams": 100, "excluded": false, "sources": [] }] },
+    "consumption": { "percentages": { "黄瓜": 0 }, "consumedGrams": { "黄瓜": 0 }, "totalConsumedG": 0 }
+  },
+  {
+    "_id": "demo-legacy", "participantCode": "000008", "status": "completed", "createdAt": 1790481600002,
+    "result": { "dishes": [{ "dishName": "旧记录示例", "ingredients": [{ "name": "土豆", "estimatedG": 80 }] }] }
+  },
+  {
+    "_id": "demo-pending", "participantCode": "000008", "status": "completed", "evaluationStatus": "pending", "createdAt": 1790481600003,
+    "result": { "dish": { "dishName": "未评估示例", "ingredients": [{ "name": "豆腐" }] } }
+  },
+  {
+    "_id": "demo-discarded", "participantCode": "001207", "status": "discarded", "evaluationStatus": "discarded",
+    "createdAt": 1790481600004, "discardedAt": 1790485200004,
+    "result": { "dish": { "dishName": "重拍作废示例", "ingredients": [{ "name": "米饭" }] } }
+  }
+]

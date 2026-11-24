@@ -21,8 +21,11 @@ import {
   RecordCandidate,
   alternateTestModes,
   cookingText,
+  ingredientSimilarity,
   matchMeal,
+  methodScore,
 } from '../services/textureMatch';
+import { prepare } from './similarity';
 import {
   MetricRow,
   TextureRecord,
@@ -58,6 +61,8 @@ export interface IngredientRow {
   matched: boolean;
   /** 是否被用户手动改过 */
   edited: boolean;
+  /** 历史改选与识别食材差距过大时，提示用户复核。 */
+  reviewNote: string;
   /** 匹配到的库中记录 id */
   recordId: string;
   /** 库中该食材的写法，如「带皮五花肉」 */
@@ -211,13 +216,25 @@ export function resolveMeal(
     );
     totalG += weight.grams;
 
-    const matchType: IngredientMatchType = rec ? (edited ? 'exact' : im.matchType) : 'none';
+    const selectedSimilarity = rec ? ingredientSimilarity(prepare(im.query), prepare(rec.ingredient)) : 0;
+    const matchType: IngredientMatchType = rec
+      ? edited ? (selectedSimilarity >= 0.95 ? 'exact' : 'similar') : im.matchType
+      : 'none';
+    let reviewNote = '';
+    if (edited && rec && selectedSimilarity < 0.7) {
+      reviewNote = `当前选用「${rec.ingredient}」的数据，与识别的「${im.query}」可能不是同一种食材，请核对或恢复自动匹配。`;
+    } else if (!edited && rec && im.reason.includes('配方可能不同')) {
+      reviewNote = `当前参考「${rec.dish}」的数据，配方可能不同，请核对。`;
+    } else if (!edited && rec && im.queryMethod && rec.method && methodScore(im.queryMethod, rec.method) === 0) {
+      reviewNote = `当前参考「${rec.dish}」中${rec.method}的实测值，与这道菜的${im.queryMethod}做法不同，请核对。`;
+    }
     return {
       name: im.query,
       cookingMethod: im.queryMethod,
       matchType,
       matched: !!rec,
       edited,
+      reviewNote,
       recordId: rec ? rec.id : '',
       matchedIngredient: rec ? rec.ingredient : '',
       matchedDish: rec ? rec.dish : '',

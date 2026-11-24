@@ -1,36 +1,24 @@
-<view class="container">
-  <view class="estimate-banner">质构数据为同类食材实测参考值</view>
-
-  <!-- 照片与识别出的菜 -->
-  <view class="card meal-head">
-    <image wx:if="{{imageUrl}}" class="meal-img" src="{{imageUrl}}" mode="aspectFill" />
-    <view wx:else class="meal-img thumb-placeholder">🍽️</view>
-    <view class="meal-meta">
-      <view class="muted">{{dateText}}</view>
-      <view class="sub">识别为 {{recognizedName}}</view>
-      <view class="sub" wx:if="{{cookingMethod}}">烹饪方式 {{cookingMethod}} · 可信度 {{confidenceText}}</view>
-    </view>
+<view class="container with-dock meal-page">
+  <view wx:if="{{!loaded}}" class="card state-card">
+    <block wx:if="{{loadError}}"><view class="state-title">暂时无法读取记录</view><view class="state-copy">{{loadError}}</view><button class="btn btn-secondary" bindtap="loadMeal">重新加载</button></block>
+    <block wx:else><view class="loading-mark"></view><view class="state-title">正在读取菜品记录</view><view class="state-copy">照片与食材信息马上就好</view></block>
   </view>
-
-  <!-- 餐次选择 -->
-  <view class="card">
-    <view class="ing-title muted">这一餐是</view>
-    <view class="mealtype-row">
-      <view
-        wx:for="{{mealTypeOptions}}"
-        wx:key="type"
-        wx:for-item="opt"
-        class="mealtype-chip {{mealType === opt.type ? 'mealtype-active' : ''}}"
-        data-type="{{opt.type}}"
-        bindtap="selectMealType"
-      >{{opt.label}}</view>
+  <block wx:else>
+  <view class="page-heading reveal"><view class="eyebrow">识别结果</view><view class="title-lg">看看这一道菜</view></view>
+  <view class="card meal-overview">
+    <view class="meal-head">
+      <image wx:if="{{imageUrl}}" class="meal-img" src="{{imageUrl}}" mode="aspectFill" bindtap="previewImage" aria-label="查看菜品原图" />
+      <view wx:else class="meal-img thumb-placeholder"><image class="ui-icon" src="/assets/icons/plate.svg" /></view>
+      <view class="meal-meta"><view class="recognized-name">{{recognizedName}}</view><view class="muted">{{dateText}}</view><view class="meal-method" wx:if="{{cookingMethod}}">{{cookingMethod}} · 识别可信度 {{confidenceText}}</view></view>
     </view>
+    <view class="participant-identity"><view class="participant-label">参与者编号（ID）</view><text class="participant-code" user-select="true">{{participantCode || '未记录编号'}}</text></view>
+    <view class="estimate-banner">质构为同类食材实测参考 · 重量为图像估算</view>
+    <button wx:if="{{!evaluationCompleted || totalCount === 0}}" class="text-button retake-inline" bindtap="retake" loading="{{busy}}" disabled="{{busy || !loaded}}"><image class="ui-icon icon-sm" src="/assets/icons/refresh.svg" />我要重新拍照</button>
   </view>
-
   <!-- 整体摘要 -->
-  <view class="card">
+  <view class="card summary-card">
     <view class="dish-head">
-      <view class="title-md">这道菜的食材</view>
+      <view class="title-md">这道菜，一眼了解</view>
       <view class="tag match-tag">{{totalCount}} 种食材</view>
     </view>
     <view wx:if="{{matchedCount > 0}}" class="summary-line">
@@ -44,6 +32,23 @@
     </view>
   </view>
 
+  <!-- 餐次选择 -->
+  <view class="card">
+    <view class="ing-title muted">这是哪一餐</view>
+    <view class="mealtype-row">
+      <button
+        wx:for="{{mealTypeOptions}}"
+        wx:key="type"
+        wx:for-item="opt"
+        class="mealtype-chip {{mealType === opt.type ? 'mealtype-active' : ''}}"
+        data-type="{{opt.type}}"
+        bindtap="selectMealType"
+       aria-label="{{opt.label + (mealType === opt.type ? '，已选择' : '')}}">{{opt.label}}</button>
+    </view>
+  </view>
+
+  <view class="ingredient-heading"><view class="title-sm">逐一看看食材</view><text class="muted">{{matchedCount}} / {{totalCount}} 种已匹配质构</text></view>
+  <view class="muted ingredient-help">核对食材；照片里没有的可以删除。</view>
   <!-- 逐食材数据：一种食材一张卡 -->
   <view wx:for="{{ingredients}}" wx:key="name" wx:for-item="ing" wx:for-index="i" class="card ing-card">
     <view class="row-head">
@@ -56,6 +61,7 @@
       <text class="weight-value">{{ing.weightText}}</text>
       <text class="muted weight-range">（{{ing.weightRangeText}}）</text>
     </view>
+    <view wx:if="{{ing.reviewNote}}" class="match-review-note">{{ing.reviewNote}}</view>
 
     <block wx:if="{{ing.matched}}">
 
@@ -76,7 +82,7 @@
           <text class="metric-pill">{{rd.adhesivenessText}}</text>
         </view>
 
-        <view wx:if="{{ing.detailOpen}}" class="metric-table">
+        <view wx:if="{{ing.detailOpen}}" class="metric-table reveal">
           <view wx:for="{{rd.metrics}}" wx:key="label" wx:for-item="m" class="metric-line">
             <text class="metric-name muted">{{m.label}}</text>
             <text class="metric-num">{{m.value}}<text class="metric-unit muted"> {{m.unit}}</text></text>
@@ -85,28 +91,29 @@
       </view>
 
       <view class="ing-actions">
-        <text class="alt-toggle-sm" data-index="{{i}}" bindtap="toggleDetail">
-          {{ing.detailOpen ? '收起九项指标 ▲' : '看九项完整指标 ▼'}}
-        </text>
-        <text class="alt-toggle-sm" data-index="{{i}}" bindtap="togglePicker">
-          {{ing.pickerOpen ? '收起备选 ▲' : '换一条数据 ▼'}}
-        </text>
-        <text wx:if="{{ing.edited}}" class="reset-link" data-index="{{i}}" bindtap="resetOne">恢复自动匹配</text>
+        <button class="alt-toggle-sm" data-index="{{i}}" bindtap="toggleDetail" aria-expanded="{{ing.detailOpen}}">
+          {{ing.detailOpen ? '收起详细指标 −' : '查看详细指标 ＋'}}
+        </button>
+        <button class="alt-toggle-sm" data-index="{{i}}" bindtap="togglePicker" aria-expanded="{{ing.pickerOpen}}">
+          {{ing.pickerOpen ? '收起备选 −' : '更换匹配数据 ＋'}}
+        </button>
+        <button wx:if="{{ing.edited}}" class="reset-link" data-index="{{i}}" bindtap="resetOne">恢复自动匹配</button>
       </view>
     </block>
 
     <block wx:else>
       <view class="unmatched">库里没有足够接近的食材，可以自己挑一条</view>
       <view class="ing-actions">
-        <text class="alt-toggle-sm" data-index="{{i}}" bindtap="togglePicker">
-          {{ing.pickerOpen ? '收起备选 ▲' : '自己挑一条 ▼'}}
-        </text>
+        <button class="alt-toggle-sm" data-index="{{i}}" bindtap="togglePicker" aria-expanded="{{ing.pickerOpen}}">
+          {{ing.pickerOpen ? '收起备选 −' : '选择参考数据 ＋'}}
+        </button>
       </view>
     </block>
 
     <!-- 备选记录面板 -->
-    <view wx:if="{{ing.pickerOpen}}" class="alt-panel">
+    <view wx:if="{{ing.pickerOpen}}" class="alt-panel reveal">
       <input
+        aria-label="搜索质构库中的食材或菜名"
         class="alt-search"
         type="text"
         placeholder="也可以直接搜食材或菜名，如「土豆」"
@@ -114,7 +121,7 @@
         bindinput="onSearchInput"
       />
       <view wx:if="{{ing.candidateViews.length === 0}}" class="muted alt-empty">没有找到相关数据</view>
-      <view
+      <button
         wx:for="{{ing.candidateViews}}"
         wx:key="id"
         wx:for-item="cand"
@@ -124,23 +131,26 @@
         bindtap="selectRecord"
       >
         <view class="alt-main">
-          <text class="alt-title">{{cand.ingredient}}</text>
+          <text class="alt-title">{{cand.ingredient}}</text><text wx:if="{{cand.selected}}" class="tag">✓ 已选</text>
         </view>
         <view class="alt-sub muted">{{cand.cookingText}} · {{cand.testMode}}</view>
-      </view>
+      </button>
     </view>
   </view>
 
   <view wx:if="{{totalCount === 0}}" class="card unmatched">没有识别出食材，换一张更清楚的照片试试</view>
 
-  <view class="disclaimer">
-    重量为图像估算，可能存在误差，不等同于真实称重；质构数据来自实验室对同类食材样本的 TPA 全质构测试（切割 / 下压两种模式），仅供参考软硬与咀嚼难度，不等同于您这一份菜的实测值，也不构成医学建议。
+  <view class="disclaimer">重量为图像估算，不等同于真实称重；质构数据来自实验室对同类食材的 TPA 测试，仅供参考软硬与咀嚼难度，不等同于这份菜的实测值，也不构成医学建议。</view>
+  <button class="text-button home-link" bindtap="goHome">返回首页</button>
+  <view class="action-dock">
+    <block wx:if="{{mealSessionId && !sessionFinished}}">
+      <view class="dock-hint">这顿饭还有菜没拍？可以继续添加。</view>
+      <view class="dock-actions"><button class="btn btn-secondary" bindtap="continueMeal" disabled="{{busy || !loaded}}">继续拍下一道</button><button class="btn btn-primary" bindtap="finishMeal" loading="{{busy}}" disabled="{{busy || !loaded}}">拍完了</button></view>
+    </block>
+    <block wx:else>
+      <view class="dock-hint">{{evaluationCompleted ? '评估已完成，可查看或修改食用比例' : '吃完饭后，记录每种食材吃了多少'}}</view>
+      <view class="dock-actions"><button class="btn btn-secondary" bindtap="goHistory">饮食记录</button><button wx:if="{{totalCount > 0}}" class="btn btn-primary" bindtap="goEvaluation" disabled="{{busy || !loaded}}">饭后评估</button><button wx:else class="btn btn-primary" bindtap="goHome">完成</button></view>
+    </block>
   </view>
-
-  <view wx:if="{{totalCount > 0}}" class="evaluation-entry"><button class="btn btn-primary" bindtap="goEvaluation" disabled="{{busy || !loaded}}">饭后评估</button><view class="muted evaluation-hint">{{evaluationCompleted ? '已完成，可查看或修改食用比例' : '吃完饭后，记录每种食材吃了多少'}}</view></view>
-
-  <view class="bottom-actions">
-    <view class="btn btn-secondary" hover-class="btn-hover" bindtap="goHistory">查看历史</view>
-    <view class="btn btn-primary" hover-class="btn-hover" bindtap="goHome">完成</view>
-  </view>
+  </block>
 </view>

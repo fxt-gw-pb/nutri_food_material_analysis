@@ -5,12 +5,15 @@ import {
   saveExcludedIngredients,
   saveAuditSnapshot,
   saveConsumptionEvaluation,
+  finishMealSession,
 } from '../../services/mealService';
 import { Dish, MealType } from '../../types/index';
 import { confidenceLabel } from '../../utils/confidence';
 import { formatDateTime, MEAL_TYPE_OPTIONS, suggestMealType } from '../../utils/format';
 import { resolveMeal, IngredientRow, RecordSelections } from '../../utils/texture';
 import { RecordCandidate, searchRecords } from '../../services/textureMatch';
+import { confirmRetake } from '../../utils/retakeNavigation';
+import { clearMealSession } from '../../utils/mealSession';
 
 /** 备选记录的展示模型（多一个「是否当前选中」） */
 interface CandidateView extends RecordCandidate {
@@ -29,6 +32,7 @@ interface IngredientView extends IngredientRow {
 Page({
   data: {
     imageUrl: '',
+    participantCode: '',
     dateText: '',
     mealType: '' as MealType | '',
     mealTypeOptions: MEAL_TYPE_OPTIONS,
@@ -56,7 +60,10 @@ Page({
     keyword: '',
     busy: false,
     loaded: false,
+    loadError: '',
     evaluationCompleted: false,
+    mealSessionId: '',
+    sessionFinished: false,
   },
 
   analysisId: '',
@@ -78,10 +85,22 @@ Page({
   },
 
   onShow() {
-    if (!this.analysisId) return;
-    this.setData({ loaded: false });
-    getMealAnalysisResult(this.analysisId)
+    this.loadMeal();
+  },
+
+  loadMeal() {
+    if (!this.analysisId) {
+      this.setData({ loadError: '缺少记录编号，请返回饮食记录重新打开。' });
+      return;
+    }
+    this.setData({ loaded: false, loadError: '' });
+    return getMealAnalysisResult(this.analysisId)
       .then(async (meal) => {
+        if (meal.status === 'discarded') {
+          wx.showToast({ title: '这条识别已作废', icon: 'none' });
+          wx.reLaunch({ url: '/pages/index/index' });
+          return;
+        }
         this.dish = meal.dish;
         this.excludedIngredients = meal.excludedIngredients || [];
         this.selections = meal.selectedRecords || {};
@@ -89,9 +108,12 @@ Page({
         const mealType = meal.mealType || suggestMealType();
         this.setData({
           imageUrl: meal.imageUrl,
+          participantCode: meal.participantCode || '',
           dateText: formatDateTime(meal.createdAt),
           mealType,
           evaluationCompleted: meal.evaluationStatus === 'completed',
+          mealSessionId: meal.mealSessionId || '',
+          sessionFinished: Boolean(meal.mealSessionFinishedAt),
         });
         this.refresh();
         await saveAuditSnapshot(this.analysisId);
@@ -108,8 +130,13 @@ Page({
       })
       .catch((err) => {
         console.error('[result] load failed', err);
+        this.setData({ loadError: '请检查网络后重试，识别记录仍会保留。' });
         wx.showToast({ title: '加载结果失败', icon: 'none' });
       });
+  },
+
+  previewImage() {
+    if (this.data.imageUrl) wx.previewImage({ current: this.data.imageUrl, urls: [this.data.imageUrl] });
   },
 
   /** 重新算一遍匹配并刷新页面（改选后也走这里） */
@@ -245,9 +272,53 @@ Page({
     } finally { this.setData({ busy: false }); }
   },
 
+  async retake() {
+    if (this.data.busy || !this.data.loaded || (this.data.evaluationCompleted && this.data.totalCount > 0)) return;
+    this.setData({ busy: true });
+    try { await confirmRetake(this.analysisId, undefined, this.data.mealSessionId); }
+    finally { this.setData({ busy: false }); }
+  },
+
   goEvaluation() {
     if (!this.data.loaded || this.data.busy) return;
     wx.navigateTo({ url: `/pages/evaluation/evaluation?analysisId=${encodeURIComponent(this.analysisId)}` });
+  },
+
+  continueMeal() {
+    if (!this.data.loaded || this.data.busy || this.data.sessionFinished) return;
+    const sessionId = this.data.mealSessionId;
+    const suffix = sessionId ? `?mealSessionId=${encodeURIComponent(sessionId)}` : '';
+    wx.navigateTo({ url: `/pages/upload/upload${suffix}` });
+  },
+
+  async finishMeal() {
+    if (!this.data.loaded || this.data.busy || this.data.sessionFinished) return;
+    if (!this.data.mealSessionId) {
+      // 兼容没有饭局标识的旧记录：它本身就是一顿饭。
+      this.setData({ sessionFinished: true });
+      wx.navigateTo({ url: '/pages/history/history' });
+      return;
+    }
+    this.setData({ busy: true });
+    try {
+      const answer = await wx.showModal({
+        title: '结束这顿饭的识别？',
+        content: '确认后会保存本顿饭的菜品，吃完饭再到历史记录里填写每道菜吃了多少。',
+        confirmText: '确认结束',
+        confirmColor: '#2fae76',
+      });
+      if (!answer.confirm) return;
+      await finishMealSession(this.data.mealSessionId);
+      clearMealSession(this.data.mealSessionId);
+      this.setData({ sessionFinished: true });
+      wx.showToast({ title: '本顿饭已保存', icon: 'success' });
+      setTimeout(() => wx.navigateTo({ url: '/pages/history/history' }), 500);
+    } catch (err) {
+      console.error('[result] finish meal failed', err);
+      wx.showToast({ title: '本顿饭未保存，请重试', icon: 'none' });
+    } finally {
+      this.setData({ busy: false });
+    }
   },
 
   goHistory() {

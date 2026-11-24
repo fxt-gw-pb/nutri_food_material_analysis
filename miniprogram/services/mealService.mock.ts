@@ -90,8 +90,10 @@ export function createMealAnalysis(
   const now = Date.now();
   const record: MealAnalysis = {
     analysisId: genId('meal'),
+    mealSessionId: params.mealSessionId,
     imageFileId: params.imageFileId,
     imageUrl: params.imageUrl,
+    participantCode: params.participantCode,
     plateDiameterCm: params.plateDiameterCm,
     status: 'pending',
     evaluationStatus: 'pending',
@@ -112,7 +114,7 @@ export function getMealAnalysisStatus(analysisId: string): Promise<AnalysisProgr
   if (!rec) {
     return Promise.reject(new Error('analysis not found'));
   }
-  if (rec.status === 'completed' || rec.status === 'failed') {
+  if (rec.status === 'completed' || rec.status === 'failed' || rec.status === 'discarded') {
     return Promise.resolve({ status: rec.status, progress: 1 });
   }
   const elapsed = Date.now() - (rec.mockStartedAt ?? rec.createdAt);
@@ -173,10 +175,25 @@ export function deleteMealRecord(analysisId: string): Promise<void> {
   return Promise.resolve();
 }
 
+export async function discardMealAnalysis(analysisId: string): Promise<void> {
+  const rec = findRecord(analysisId);
+  if (!rec) throw new Error('analysis not found');
+  if (rec.status === 'discarded') return;
+  if (rec.status !== 'completed' && rec.status !== 'failed') throw new Error('请等待识别结束后重拍');
+  rec.status = 'discarded';
+  rec.evaluationStatus = 'discarded';
+  rec.discardedAt = Date.now();
+  rec.updatedAt = rec.discardedAt;
+  upsertRecord(rec);
+}
+
 function toHistoryItem(rec: MealAnalysis): MealHistoryItem {
   const resolved = resolveMeal(rec.dish, rec.selectedRecords, rec.plateDiameterCm, rec.excludedIngredients);
   return {
     analysisId: rec.analysisId,
+    participantCode: rec.participantCode,
+    mealSessionId: rec.mealSessionId,
+    mealSessionFinishedAt: rec.mealSessionFinishedAt,
     date: rec.createdAt,
     mealType: rec.mealType,
     imageUrl: rec.imageUrl,
@@ -193,10 +210,10 @@ function toHistoryItem(rec: MealAnalysis): MealHistoryItem {
 
 export async function getPendingMealEvaluation(): Promise<MealAnalysis | null> {
   // mock 在重新进入时也推进进度，模拟云端独立完成任务。
-  for (const meal of loadRecords().filter((r) => r.evaluationStatus === 'pending' && r.status !== 'failed')) {
+  for (const meal of loadRecords().filter((r) => !r.mealSessionId && r.evaluationStatus === 'pending' && r.status !== 'failed')) {
     await getMealAnalysisStatus(meal.analysisId);
   }
-  return loadRecords().find((r) => r.evaluationStatus === 'pending' && r.status === 'completed') || null;
+  return loadRecords().find((r) => !r.mealSessionId && r.evaluationStatus === 'pending' && r.status === 'completed') || null;
 }
 
 export async function saveAuditSnapshot(analysisId: string): Promise<void> {
@@ -207,6 +224,7 @@ export async function saveAuditSnapshot(analysisId: string): Promise<void> {
 
 export async function saveExcludedIngredients(analysisId: string, names: string[]): Promise<void> {
   const meal = await getMealAnalysisResult(analysisId);
+  if (meal.status === 'discarded') throw new Error('这条识别已作废，请重新拍照');
   meal.excludedIngredients = validateExcluded(meal, names);
   const empty = resolveMeal(meal.dish, meal.selectedRecords, meal.plateDiameterCm, meal.excludedIngredients).totalCount === 0;
   const complete = empty || meal.evaluationStatus === 'completed';
@@ -219,6 +237,7 @@ export async function saveExcludedIngredients(analysisId: string, names: string[
 
 export async function saveConsumptionEvaluation(analysisId: string, percentages: Record<string, number>, complete: boolean): Promise<void> {
   const meal = await getMealAnalysisResult(analysisId);
+  if (meal.status === 'discarded') throw new Error('这条识别已作废，请重新拍照');
   if (!complete && meal.evaluationStatus === 'completed') throw new Error('这餐已评估完成，请重新打开页面');
   if (meal.status !== 'completed') throw new Error('请等待识别完成');
   meal.consumption = buildConsumption(meal, percentages, complete);
@@ -226,4 +245,17 @@ export async function saveConsumptionEvaluation(analysisId: string, percentages:
   meal.auditSnapshot = buildAuditSnapshot(meal);
   meal.updatedAt = Date.now();
   upsertRecord(meal);
+}
+
+export async function finishMealSession(mealSessionId: string): Promise<void> {
+  if (!mealSessionId) throw new Error('缺少饭局标识');
+  const all = loadRecords();
+  const records = all.filter((r) => r.mealSessionId === mealSessionId && r.status === 'completed');
+  if (!records.length) throw new Error('没有找到这顿饭的识别记录');
+  const now = Date.now();
+  records.forEach((record) => {
+    record.mealSessionFinishedAt = now;
+    record.updatedAt = now;
+  });
+  saveRecords(all);
 }

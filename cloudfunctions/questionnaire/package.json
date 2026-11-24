@@ -1,0 +1,8 @@
+{
+  "name": "questionnaire",
+  "version": "1.0.0",
+  "private": true,
+  "description": "每周随访问卷提交与记录查询",
+  "main": "index.js",
+  "dependencies": { "wx-server-sdk": "~2.6.3" }
+}

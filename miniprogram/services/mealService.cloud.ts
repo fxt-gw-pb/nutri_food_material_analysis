@@ -24,6 +24,7 @@ const STATUS_PROGRESS: Record<AnalysisStatus, number> = {
   preprocessing: 0.25,
   recognizing: 0.6,
   completed: 1,
+  discarded: 1,
   failed: 1,
 };
 
@@ -40,8 +41,12 @@ function db(): DB.Database {
 /** meal_records 文档形状（落库结构见 docs/cloudbase-integration.md） */
 interface AnyDoc {
   _id: string;
+  mealSessionId?: string;
+  mealSessionFinishedAt?: number;
   imageFileId?: string;
   imageUrl: string;
+  participantCode?: string;
+  discardedAt?: number;
   /** 拍照时选的餐盘直径（cm），估重的尺度基准 */
   plateDiameterCm?: number;
   status: AnalysisStatus;
@@ -71,8 +76,12 @@ function docDish(doc: AnyDoc): Dish | null {
 function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
   return {
     analysisId: doc._id,
+    mealSessionId: doc.mealSessionId,
+    mealSessionFinishedAt: doc.mealSessionFinishedAt,
     imageFileId: doc.imageFileId,
     imageUrl: doc.imageUrl,
+    participantCode: doc.participantCode,
+    discardedAt: doc.discardedAt,
     status: doc.status,
     mealType: doc.mealType,
     modelName: doc.modelName,
@@ -96,6 +105,9 @@ function docToHistoryItem(doc: AnyDoc): MealHistoryItem {
   const resolved = resolveMeal(docDish(doc), doc.selectedRecords, doc.plateDiameterCm, doc.excludedIngredients);
   return {
     analysisId: doc._id,
+    participantCode: doc.participantCode,
+    mealSessionId: doc.mealSessionId,
+    mealSessionFinishedAt: doc.mealSessionFinishedAt,
     date: doc.createdAt,
     mealType: doc.mealType,
     imageUrl: doc.imageUrl,
@@ -133,6 +145,8 @@ export function createMealAnalysis(
         imageFileId: params.imageFileId,
         imageUrl: params.imageUrl,
         plateDiameterCm: params.plateDiameterCm,
+        participantCode: params.participantCode,
+        mealSessionId: params.mealSessionId || '',
       },
     })
     .then(async (res) => {
@@ -142,7 +156,12 @@ export function createMealAnalysis(
       }
       const analysisId = result.analysisId;
       await db().collection(COLLECTION).doc(analysisId).update({
-        data: { evaluationStatus: 'pending', excludedIngredients: [], updatedAt: Date.now() },
+        data: {
+          participantCode: params.participantCode,
+          evaluationStatus: 'pending',
+          excludedIngredients: [],
+          updatedAt: Date.now(),
+        },
       });
       // 第二步：触发后台识别（不 await；前端在 analyzing 页轮询 status 感知进度）。
       // 请求已发出后即使本页跳转，云函数仍会在服务端跑完。
@@ -227,11 +246,24 @@ export function deleteMealRecord(analysisId: string): Promise<void> {
   });
 }
 
+export async function discardMealAnalysis(analysisId: string): Promise<void> {
+  const meal = await getMealAnalysisResult(analysisId);
+  if (meal.status === 'discarded') return;
+  // 只作废已结束的识别，避免云函数随后完成并覆盖作废状态。
+  if (meal.status !== 'completed' && meal.status !== 'failed') throw new Error('请等待识别结束后重拍');
+  const now = Date.now();
+  const result = await db().collection(COLLECTION).doc(analysisId).update({ data: {
+    status: 'discarded', evaluationStatus: 'discarded', discardedAt: now, updatedAt: now,
+  } });
+  if (result.stats.updated !== 1) throw new Error('本次识别未能作废，请重试');
+}
+
 export async function getPendingMealEvaluation(): Promise<MealAnalysis | null> {
   // 只检索新版的待评记录；不从最近 30 条历史猜测，也不要求老记录补评。
   const res = await db().collection(COLLECTION)
-    .where({ evaluationStatus: 'pending', status: 'completed' }).limit(1).get();
-  return res.data.length ? docToMealAnalysis(res.data[0] as AnyDoc) : null;
+    .where({ evaluationStatus: 'pending', status: 'completed' }).limit(30).get();
+  const legacy = (res.data as AnyDoc[]).find((doc) => !doc.mealSessionId);
+  return legacy ? docToMealAnalysis(legacy) : null;
 }
 
 export async function saveAuditSnapshot(analysisId: string): Promise<void> {
@@ -243,6 +275,7 @@ export async function saveAuditSnapshot(analysisId: string): Promise<void> {
 
 export async function saveExcludedIngredients(analysisId: string, names: string[]): Promise<void> {
   const meal = await getMealAnalysisResult(analysisId);
+  if (meal.status === 'discarded') throw new Error('这条识别已作废，请重新拍照');
   meal.excludedIngredients = validateExcluded(meal, names);
   const empty = resolveMeal(meal.dish, meal.selectedRecords, meal.plateDiameterCm, meal.excludedIngredients).totalCount === 0;
   const complete = empty || meal.evaluationStatus === 'completed';
@@ -257,6 +290,7 @@ export async function saveExcludedIngredients(analysisId: string, names: string[
 
 export async function saveConsumptionEvaluation(analysisId: string, percentages: Record<string, number>, complete: boolean): Promise<void> {
   const meal = await getMealAnalysisResult(analysisId);
+  if (meal.status === 'discarded') throw new Error('这条识别已作废，请重新拍照');
   if (!complete && meal.evaluationStatus === 'completed') throw new Error('这餐已评估完成，请重新打开页面');
   if (meal.status !== 'completed') throw new Error('请等待识别完成');
   const consumption = buildConsumption(meal, percentages, complete);
@@ -264,4 +298,16 @@ export async function saveConsumptionEvaluation(analysisId: string, percentages:
     consumption: db().command.set(consumption), evaluationStatus: complete ? 'completed' : 'pending',
     auditSnapshot: db().command.set(buildAuditSnapshot(meal)), updatedAt: Date.now(),
   } });
+}
+
+export async function finishMealSession(mealSessionId: string): Promise<void> {
+  if (!mealSessionId) throw new Error('缺少饭局标识');
+  const now = Date.now();
+  // CloudBase 的 Query 没有 update 方法，先查出当前饭局的已完成记录，再逐条更新。
+  const found = await db().collection(COLLECTION).where({ mealSessionId, status: 'completed' }).get();
+  const records = found.data as AnyDoc[];
+  if (!records.length) throw new Error('没有找到这顿饭的识别记录');
+  await Promise.all(records.map((record) => db().collection(COLLECTION).doc(record._id).update({
+    data: { mealSessionFinishedAt: now, updatedAt: now },
+  })));
 }

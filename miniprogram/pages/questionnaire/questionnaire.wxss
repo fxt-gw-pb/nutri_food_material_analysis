@@ -1,0 +1,44 @@
+.questionnaire-page { padding-bottom: calc(48rpx + env(safe-area-inset-bottom)); }
+.questionnaire-page button.option, .questionnaire-page button.btn, .questionnaire-page button.history-link { width: 100%; max-width: none; }
+.intro-text { margin: 12rpx 0 24rpx; font-size: 28rpx; color: var(--sub); }
+.introduction .participant-identity { margin-bottom: 12rpx; }
+.identity-hint, .question-tip { font-size: 26rpx; color: var(--sub); }
+button.history-link { padding: 20rpx 0 0; min-height: 88rpx; margin: 0; text-align: left; font-size: 28rpx; line-height: 1.6; color: var(--primary); background: transparent; font-weight: 500; }
+.progress-card { background: #edf3e7; border-color: #d9e4cf; }
+.progress-label, .question-meta { display: flex; justify-content: space-between; align-items: center; gap: 16rpx; }
+.progress-label { font-size: 28rpx; }
+.progress-count { font-size: 40rpx; color: var(--primary-dark); font-weight: 600; }
+.progress-count text { font-size: 26rpx; color: var(--sub); font-weight: 400; }
+.progress-track { height: 12rpx; border-radius: 12rpx; background: #dce6d2; margin: 18rpx 0; overflow: hidden; }
+.progress-value { height: 100%; background: var(--primary); border-radius: 12rpx; transition: width 320ms ease; }
+.question-meta { color: var(--sub); font-size: 25rpx; margin-bottom: 16rpx; }
+.answered-tag { padding: 4rpx 14rpx; border-radius: 10rpx; background: var(--primary-soft); color: var(--primary-dark); }
+.question-heading { font-size: 33rpx; font-weight: 600; line-height: 1.65; }
+.question-card .question-tip { margin-top: 12rpx; }
+.options { margin-top: 24rpx; }
+button.option { display: flex; align-items: center; width: 100%; min-height: 100rpx; margin: 14rpx 0 0; padding: 22rpx 24rpx; border: 2rpx solid #dce4d4; border-radius: 20rpx; background: #fafbf7; color: var(--text); font-size: 30rpx; font-weight: 400; line-height: 1.6; text-align: left; transition: background 150ms ease, border-color 150ms ease; }
+button.option:first-child { margin-top: 0; }
+button.option-selected { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-dark); }
+button.option[disabled] { color: var(--text); background: #f5f7f1; }
+button.option-selected[disabled] { color: var(--primary-dark); background: var(--primary-soft); }
+.option-hover { opacity: .8; }
+.choice-mark { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 40rpx; height: 40rpx; margin-right: 20rpx; border: 2rpx solid #8a9d80; border-radius: 50%; font-size: 26rpx; font-weight: 700; }
+.choice-square { border-radius: 10rpx; }
+.option-selected .choice-mark { background: var(--primary); border-color: var(--primary); color: #fff; }
+.option-label { flex: 1; min-width: 0; }
+.question-invalid { border-color: #b55845; box-shadow: 0 0 0 2rpx #b55845; }
+.question-error { margin-top: 12rpx; color: var(--danger); font-size: 26rpx; }
+.submit-identity { font-size: 28rpx; overflow-wrap: anywhere; word-break: break-all; }
+.submit-code { font-weight: 700; }
+.save-status { margin-top: 12rpx; color: var(--sub); font-size: 26rpx; }
+button.submit-button { margin-top: 24rpx; }
+.pending-hint { font-size: 26rpx; color: var(--warn-text); margin-top: 12rpx; }
+.error-text { color: var(--danger); font-size: 28rpx; margin-top: 16rpx; }
+.saved-notice { background: var(--primary-soft); color: var(--primary-dark); font-size: 28rpx; text-align: center; }
+.saved-notice .title-md { margin-bottom: 12rpx; }
+.success-mark { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; margin: 0 auto 24rpx; border-radius: 50%; background: var(--primary); animation: reveal 350ms ease-out; }
+.answer-text { color: var(--primary-dark); font-size: 32rpx; font-weight: 600; margin-top: 18rpx; }
+.page-state { padding: 48rpx 30rpx; font-size: 30rpx; text-align: center; }
+button.state-button { margin-top: 24rpx; }
+.mock-notice { color: var(--warn-text); background: var(--warn-bg); padding: 20rpx; margin-bottom: 24rpx; border-radius: 16rpx; font-size: 26rpx; }
+@media (prefers-reduced-motion: reduce) { .progress-value, button.option { transition: none; } .success-mark { animation: none; } }

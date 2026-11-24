@@ -1,0 +1,11 @@
+.questionnaire-history { padding-bottom: calc(48rpx + env(safe-area-inset-bottom)); }
+.questionnaire-history button.record-button, .questionnaire-history button.btn { width: 100%; max-width: none; }
+.history-hint { font-size: 27rpx; color: var(--sub); }
+button.new-button, button.state-button { margin-top: 24rpx; }
+button.record-button { display: block; text-align: left; font-weight: 400; line-height: 1.6; color: var(--text); }
+.record-top { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.record-title { font-size: 32rpx; font-weight: 600; }
+.record-date { font-size: 26rpx; color: var(--sub); margin-top: 18rpx; }
+.record-link { display: flex; justify-content: space-between; font-size: 28rpx; color: var(--primary); margin-top: 24rpx; padding-top: 20rpx; border-top: 1rpx solid var(--border); }
+.error-state { color: var(--danger); font-size: 28rpx; }
+.list-status { text-align: center; color: var(--sub); font-size: 26rpx; padding: 32rpx 0; }

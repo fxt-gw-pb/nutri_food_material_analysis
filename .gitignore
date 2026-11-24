@@ -1,11 +1,12 @@
 # 依赖
-node_modules
+node_modules/
 
-# 本地环境变量（含真正的密钥，如千问 API Key —— 仅用于云函数/后端）
+# 本地敏感配置（密钥、AppID、CloudBase 环境 ID 等）
 .env
 .env.local
+miniprogram/services/config.ts
 
-# 微信开发者工具本地/私有配置（含本地编译设置）
+# 微信开发者工具本地/私有配置（含本地 AppID、编译设置）
 project.private.config.json
 
 # TypeScript 编译产物（DevTools 内置 TS 插件会就地生成 .js，不应提交）
@@ -16,11 +17,27 @@ miniprogram/**/*.js.map
 # 小程序 npm 构建产物
 miniprogram_npm/
 
-# 云函数依赖
-cloudfunctions/**/node_modules/
-
 # 系统与编辑器
 .DS_Store
 .idea/
 .vscode/
 *.log
+
+# 数据导出：原始研究数据及每次生成的 CSV 不进入代码版本
+/exports/
+
+# 原始需求、参与者反馈、参考书籍与本地备份：含研究数据或版权材料，不进公开仓库
+/0827rawdata/
+/0828rawdata/
+/0915修改要求/
+/0928反馈/*.xlsx
+/0928反馈/*.docx
+/1015新增问卷/
+/1124/
+/交付/0915新版/
+/交付/0922新版/
+/交付/*.zip
+/.ui-backups/
+/logo/
+.claude/settings.local.json
+/交付/*.jpg

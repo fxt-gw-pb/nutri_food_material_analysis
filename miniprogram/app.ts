@@ -1,5 +1,4 @@
 import { CONFIG } from './services/config';
-import { checkPendingEvaluation } from './utils/evaluationNavigation';
 
 // 小程序入口。
 // 已初始化 CloudBase 云能力（环境 ID 见 services/config.ts）。
@@ -8,14 +7,6 @@ import { checkPendingEvaluation } from './utils/evaluationNavigation';
 App<IAppOption>({
   globalData: {
     cloudEnv: CONFIG.cloudEnv,
-  },
-  onShow() {
-    // 冷启动由首页检查；从后台回到结果/历史等页面时主动提醒。
-    const pages = getCurrentPages();
-    const current = pages[pages.length - 1];
-    if (current && ['pages/index/index', 'pages/upload/upload', 'pages/analyzing/analyzing', 'pages/evaluation/evaluation'].indexOf(current.route) < 0) {
-      void checkPendingEvaluation();
-    }
   },
   onLaunch() {
     if (wx.cloud) {

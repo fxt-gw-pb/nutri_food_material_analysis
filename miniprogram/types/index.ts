@@ -25,6 +25,7 @@ export type AnalysisStatus =
   | 'preprocessing'
   | 'recognizing'
   | 'completed'
+  | 'discarded'
   | 'failed';
 
 /** 视觉模型识别出的一种食材 */
@@ -66,10 +67,18 @@ export interface Dish {
  */
 export interface MealAnalysis {
   analysisId: string;
+  /** 本顿饭的会话标识；同一顿饭拍多道菜时共用。 */
+  mealSessionId?: string;
+  /** 用户选择“拍完了”并确认保存本顿饭的时间。 */
+  mealSessionFinishedAt?: number;
   /** CloudBase 云存储 fileID */
   imageFileId?: string;
   /** 可访问的图片地址；mock 阶段为本地临时路径 */
   imageUrl: string;
+  /** 登录后填写的个人编码快照。 */
+  participantCode?: string;
+  /** 用户选择重新拍照的时间；作废记录保留原始结果供追溯。 */
+  discardedAt?: number;
   /** 拍照时用户选的餐盘直径（cm）——估重的唯一真实尺度 */
   plateDiameterCm?: number;
   status: AnalysisStatus;
@@ -89,7 +98,7 @@ export interface MealAnalysis {
   /** 保留原始识别结果，排除的食材不再计入展示、总重或评估。 */
   excludedIngredients?: string[];
   /** 旧记录缺少此字段，不强制补评。 */
-  evaluationStatus?: 'pending' | 'completed';
+  evaluationStatus?: 'pending' | 'completed' | 'discarded';
   consumption?: ConsumptionEvaluation;
   /** 仅供后台查询及导出，不在老人界面展示。 */
   auditSnapshot?: MealAuditSnapshot;
@@ -106,6 +115,10 @@ export interface MealAnalysis {
 /** 历史记录列表项（由 MealAnalysis 派生的轻量视图） */
 export interface MealHistoryItem {
   analysisId: string;
+  /** 拍照时填写的参与者编码，与该条菜品记录固定关联。 */
+  participantCode?: string;
+  mealSessionId?: string;
+  mealSessionFinishedAt?: number;
   /** 创建时间戳 */
   date: number;
   /** 餐次 */
@@ -121,7 +134,7 @@ export interface MealHistoryItem {
   ingredientText: string;
   /** 质构摘要，如 "偏软 · 好嚼" */
   textureSummary: string;
-  evaluationStatus?: 'pending' | 'completed';
+  evaluationStatus?: 'pending' | 'completed' | 'discarded';
   totalConsumedG?: number;
   /** 整道菜的估算总重（g），估不出时为 0 */
   totalG: number;
@@ -129,6 +142,10 @@ export interface MealHistoryItem {
 
 
 export interface ConsumptionEvaluation {
+  /** 评估对应的原始菜品记录；旧版评估可能缺失。 */
+  analysisId?: string;
+  /** 拍照时的参与者编码快照；旧记录缺码时不补当前手机的编码。 */
+  participantCode?: string;
   /** 只存用户明确调整或确认过的食材，缺失表示未填写。 */
   percentages: Record<string, number>;
   consumedGrams: Record<string, number>;

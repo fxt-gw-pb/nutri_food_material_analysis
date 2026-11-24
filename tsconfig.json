@@ -12,6 +12,7 @@
     "lib": ["ES2018"],
     "esModuleInterop": true,
     "typeRoots": ["./typings", "./node_modules"],
+    "types": ["miniprogram-api-typings"],
     "skipLibCheck": true
   },
   "include": ["./miniprogram/**/*.ts", "./typings/**/*.d.ts"],

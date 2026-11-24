@@ -20,6 +20,9 @@ export interface CreateMealAnalysisParams {
   imageFileId?: string;
   /** 用户选的餐盘直径（cm），估重的尺度基准 */
   plateDiameterCm: number;
+  participantCode?: string;
+  /** 当前饭局的标识；同一顿饭的多道菜共用。 */
+  mealSessionId?: string;
 }
 
 export interface MealServiceApi {
@@ -50,4 +53,7 @@ export interface MealServiceApi {
   getMealHistory(): Promise<MealHistoryItem[]>;
   /** 删除一条分析记录（含云存储图片） */
   deleteMealRecord(analysisId: string): Promise<void>;
+  discardMealAnalysis(analysisId: string): Promise<void>;
+  /** 结束当前饭局的拍摄阶段，饭后再逐条评估。 */
+  finishMealSession(mealSessionId: string): Promise<void>;
 }

@@ -118,10 +118,19 @@ test('失败记录不挡下一餐，写入失败不会解除待评状态', async
   await assert.rejects(cloud.saveConsumptionEvaluation('m1',{ 牛肉:100, 土豆:100, 青椒:100 },true));
   failWrite=false; assert.equal(records.m1.evaluationStatus,'pending');
 });
+test('重拍会把完成记录作废、清出待评和历史，并拒绝继续编辑', async () => {
+  reset();
+  await cloud.discardMealAnalysis('m1');
+  assert.equal(records.m1.status, 'discarded');
+  assert.equal(records.m1.evaluationStatus, 'discarded');
+  assert.equal(await cloud.getPendingMealEvaluation(), null);
+  await assert.rejects(cloud.saveConsumptionEvaluation('m1', { 牛肉: 100, 土豆: 100, 青椒: 100 }, true), /作废/);
+  assert.equal((await cloud.getMealHistory()).length, 0);
+});
 test('服务层阻止绕过首页直接创建下一餐；完成后新任务初始化待评字段', async () => {
-  reset(); await assert.rejects(service.createMealAnalysis({ imageUrl:'',plateDiameterCm:26 }),/上一餐/);
+  reset(); await assert.rejects(service.createMealAnalysis({ imageUrl:'',plateDiameterCm:26,participantCode:'P001' }),/上一餐/);
   await cloud.saveConsumptionEvaluation('m1',{ 牛肉:0, 土豆:100, 青椒:100 },true);
-  const created = await service.createMealAnalysis({ imageUrl:'',plateDiameterCm:26 });
+  const created = await service.createMealAnalysis({ imageUrl:'',plateDiameterCm:26,participantCode:'P001' });
   assert.equal(created.analysisId,'created'); assert.equal(records.created.evaluationStatus,'pending');
 });
 test('重新进入提示和取消均不会放行新识别', async () => {

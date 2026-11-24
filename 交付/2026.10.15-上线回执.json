@@ -1,0 +1,86 @@
+{
+  "version": "2026.10.15",
+  "appid": "wxf338d5243e5cf268",
+  "envId": "cloud1-d8gfgeids7d390dbc",
+  "recordedAt": "2026-10-15T07:09:44.248Z",
+  "cloudFunction": {
+    "name": "questionnaire",
+    "status": "deployed",
+    "filesCount": 4,
+    "packSize": "3.9 KB",
+    "runtime": "Nodejs16.13",
+    "timeoutSeconds": 20,
+    "validation": "真实小程序调用返回 VERSION_MISMATCH，确认新代码生效"
+  },
+  "collection": {
+    "name": "questionnaire_responses",
+    "permission": "ADMINONLY",
+    "createRequestId": "a2a4a67a-2a01-4785-9f61-70bfee4737ac",
+    "index": {
+      "name": "questionnaire_owner_participant_time",
+      "unique": false,
+      "keys": [
+        [
+          "_openid",
+          1
+        ],
+        [
+          "participantCode",
+          1
+        ],
+        [
+          "createdAt",
+          -1
+        ],
+        [
+          "_id",
+          -1
+        ]
+      ]
+    },
+    "clientDirectRead": {
+      "allowed": false,
+      "errorCode": -502003,
+      "message": "Permission denied"
+    }
+  },
+  "liveTest": {
+    "participantCode": "QA-20261015-DEPLOY",
+    "responseId": "q_d53ab4636d40e22e6214499732793c",
+    "createdAt": 1792047857626,
+    "submitted": true,
+    "retrySameRecord": true,
+    "retrySameTimestamp": true,
+    "historyCount": 1,
+    "detailAnswerCount": 6,
+    "cleanup": {
+      "deleted": 1,
+      "requestId": "f54f4b60-1968-4e4e-b854-ce632ccc9e40",
+      "verifiedRemaining": 0
+    }
+  },
+  "upload": {
+    "status": "success",
+    "confirmedAt": "2026-10-15T07:02:43.275Z",
+    "sizeBytes": 271726,
+    "description": "新增每周随访问卷：6题、按参与者保存、草稿恢复、历史查看及重复提交保护"
+  },
+  "experienceVersion": {
+    "status": "enabled",
+    "confirmationDate": "2026-10-15",
+    "confirmationSource": "user_confirmation",
+    "confirmationText": "已将 2026.10.15 设为体验版",
+    "selectionMethod": "用户在微信公众平台手动选择",
+    "independentlyVerified": false,
+    "verificationNote": "微信公众平台被浏览器站点安全策略拦截；依据用户明确确认记录状态"
+  },
+  "sha256": {
+    "cloudfunctions/questionnaire/index.js": "3c4cc80b49d8bdacb74b936b933751b68656cbc1a5719fe07e5050e51287a51c",
+    "cloudfunctions/questionnaire/handler.js": "b6a55704c4a56f19bb241650df10acabea7ef0d5b4114007916be6d96f8ec00a",
+    "cloudfunctions/questionnaire/schema.json": "0043f35f9690f0a7d676f1e08a76f77e6a71be4a170d8a606f1957f1970da0f8",
+    "cloudfunctions/questionnaire/package.json": "2f185d563b91c659369a50a34b09ef8f290719fc88a98d382837764500b039fb",
+    "miniprogram/data/questionnaire.ts": "3efa19c38cd595d113cc5d2867a79516c9d443b8a745e519d058e197a16b451c",
+    "miniprogram/pages/questionnaire/questionnaire.ts": "089515a470421f35b3e631360e7504e6004560a46b1ca4769c569568ddede6fc",
+    "miniprogram/services/questionnaireService.ts": "824552670e836623823ee2cb77632d46f8f0f45faa8d6a450cc366f14b8723ac"
+  }
+}

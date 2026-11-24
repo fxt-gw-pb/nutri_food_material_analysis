@@ -41,7 +41,11 @@ export interface Prepared {
 }
 
 export function prepare(text: string): Prepared {
-  const norm = normalize(text);
+  // 花生米与花生仁是同一种可食部分；「新鲜」只是状态修饰。
+  // 不把花生芽归并进来，芽菜的质构与花生仁不同。
+  const original = normalize(text);
+  const withoutFreshness = original.replace(/^新鲜(?=花生仁$)/, '');
+  const norm = /^(花生米|花生粒)$/.test(withoutFreshness) ? '花生仁' : withoutFreshness;
   return { norm, core: coreWord(norm) };
 }
 

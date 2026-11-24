@@ -18,6 +18,8 @@ export const CONFIG = {
   useCloud: false,
   /** 负责分析的云函数名 */
   analyzeFunctionName: 'analyzeMeal',
+  /** 随访问卷云函数；另需创建 questionnaire_responses 集合 */
+  questionnaireFunctionName: 'questionnaire',
   /** 云存储中菜品照片的目录前缀 */
   uploadDir: 'meal-images/',
 };

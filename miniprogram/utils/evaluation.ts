@@ -36,6 +36,8 @@ export function buildConsumption(meal: MealAnalysis, percentages: Record<string,
   });
   const now = Date.now();
   return {
+    analysisId: meal.analysisId,
+    ...(meal.participantCode !== undefined ? { participantCode: meal.participantCode } : {}),
     percentages: clean, consumedGrams: grams,
     totalConsumedG: Math.round(Object.keys(grams).reduce((s, n) => s + grams[n], 0) * 100) / 100,
     updatedAt: now,

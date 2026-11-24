@@ -1,0 +1,65 @@
+<view class="container questionnaire-page">
+  <view wx:if="{{!loaded}}" class="card state-card"><view class="loading-mark"></view><view class="state-title">正在准备问卷</view></view>
+  <view wx:elif="{{loadError}}" class="card page-state">
+    <view>{{loadError}}</view>
+    <button class="btn btn-primary state-button" bindtap="loadQuestionnaire">重新加载</button>
+    <button class="btn btn-secondary state-button" bindtap="goHome">返回首页</button>
+  </view>
+  <block wx:else>
+    <view wx:if="{{mockMode}}" class="mock-notice">本地演示模式，问卷只保存在此手机</view>
+    <view class="page-heading reveal"><view class="eyebrow">每周随访</view><view class="title-lg">记录这一周的近况</view><view class="page-description">花一点时间，回顾最近的进食情况。</view></view>
+    <view class="card introduction">
+      <view class="section-head"><view class="title-sm">{{title}}</view><text class="tag tag-neutral">共 6 题</text></view>
+      <view class="intro-text">请根据最近一周的真实情况填写，每次提交独立保存。</view>
+      <view class="participant-identity">
+        <view class="participant-label">本次填写的参与者编号（ID）</view>
+        <text class="participant-code">{{participantCode}}</text>
+      </view>
+      <view wx:if="{{!saved}}" class="identity-hint">请先核对编号；如需换人，请返回首页更换。</view>
+      <button class="history-link" disabled="{{busy}}" bindtap="goHistory">查看此参与者的问卷记录 ›</button>
+    </view>
+
+    <block wx:if="{{saved}}">
+      <view class="card saved-notice">
+        <view class="success-mark"><image class="ui-icon" src="/assets/icons/check-white.svg" /></view><view class="title-md">问卷已提交</view>
+        <view>提交时间：{{savedTime}}（北京时间）</view>
+        <view>以下是这次保存的答案。</view>
+      </view>
+      <view wx:for="{{savedAnswers}}" wx:key="questionId" class="card saved-answer">
+        <view class="question-heading">{{index + 1}}. {{item.question}}</view>
+        <view class="answer-text">{{item.text}}</view>
+      </view>
+      <button class="btn btn-primary" bindtap="goHome">返回首页</button>
+    </block>
+
+    <block wx:else>
+      <view class="card progress-card">
+        <view class="progress-label"><text>填写进度</text><text class="progress-count">{{answeredCount}} <text>/ 6 题</text></text></view>
+        <view class="progress-track"><view class="progress-value" style="width: {{progress}}%;"></view></view>
+        <view class="question-tip">前 5 题单选，第 6 题可多选。所有题目均需填写。</view>
+      </view>
+      <view wx:for="{{questions}}" wx:for-item="question" wx:key="id" id="question-{{question.id}}" class="card question-card {{invalidId === question.id ? 'question-invalid' : ''}}">
+        <view class="question-meta"><text>第 {{question.number}} 题 · {{question.multiple ? '多选' : '单选'}}</text><text wx:if="{{question.answered}}" class="answered-tag">✓ 已答</text></view>
+        <view class="question-heading">{{question.title}}</view>
+        <view wx:if="{{invalidId === question.id}}" class="question-error">请选择答案后再提交</view>
+        <view wx:if="{{question.multiple}}" class="question-tip">可选择多项；选择“都没有”会取消其他选项。</view>
+        <view class="options">
+          <button wx:for="{{question.options}}" wx:for-item="option" wx:key="value"
+            hover-class="option-hover" class="option {{option.selected ? 'option-selected' : ''}}"
+            disabled="{{busy || pending}}" data-question="{{question.id}}" data-value="{{option.value}}"
+            aria-label="{{option.label + (option.selected ? '，已选择' : '，未选择')}}" bindtap="chooseOption">
+            <text class="choice-mark {{question.multiple ? 'choice-square' : ''}}">{{option.selected ? '✓' : ''}}</text>
+            <text class="option-label">{{option.label}}</text>
+          </button>
+        </view>
+      </view>
+      <view class="card submit-card">
+        <view class="submit-identity">将保存到参与者 <text class="submit-code">{{participantCode}}</text></view>
+        <view class="save-status">{{saveText}}</view>
+        <view wx:if="{{pending && !busy}}" class="pending-hint">正在等待确认的答案已锁定，请重试提交。</view>
+        <view wx:if="{{submitError}}" class="error-text">{{submitError}}</view>
+        <button class="btn btn-primary submit-button" loading="{{busy}}" disabled="{{busy}}" bindtap="submit">{{busy ? '正在提交' : (pending ? '重试提交' : '提交问卷')}}</button>
+      </view>
+    </block>
+  </block>
+</view>

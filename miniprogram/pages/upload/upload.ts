@@ -7,13 +7,16 @@ import {
   normalizePlateDiameter,
 } from '../../utils/weight';
 import { safeGet, safeSet } from '../../utils/storage';
-import { checkPendingEvaluation } from '../../utils/evaluationNavigation';
+import { getUserProfile, saveUserProfile, UserProfile } from '../../services/userProfile';
+import { ensureMealSession, getActiveMealSession } from '../../utils/mealSession';
 
 // 上次选过的盘径记在本地：同一个人多半天天用同一个盘子，不该每次都重选。
 const LAST_DIAMETER_KEY = 'last_plate_diameter';
 
 Page({
   data: {
+    mealSessionId: '',
+    participantCode: '',
     imageUrl: '',
     diameterOptions: PLATE_DIAMETER_OPTIONS,
     selectedDiameter: DEFAULT_PLATE_DIAMETER,
@@ -27,19 +30,49 @@ Page({
     ],
     submitting: false,
   },
+  /** 旧版直接打开上传页时没有饭局参数，保留兼容路径；首页/历史入口都会带参数。 */
+  sessionFromRoute: false,
 
-  onLoad() {
+  onLoad(query: Record<string, string | undefined> = {}) {
+    this.sessionFromRoute = Boolean(query.mealSessionId);
     const last = normalizePlateDiameter(safeGet<number>(LAST_DIAMETER_KEY, DEFAULT_PLATE_DIAMETER));
+    const profile = getUserProfile();
     // 上次用的是自定义尺寸（不在预设里）时，直接把自定义框填好并激活。
     const preset = PLATE_DIAMETER_OPTIONS.indexOf(last) >= 0;
+    const mealSessionId = this.sessionFromRoute
+      ? ensureMealSession(query.mealSessionId)
+      : (getActiveMealSession() || '');
     this.setData({
+      mealSessionId,
       selectedDiameter: last,
       useCustom: !preset,
       customDiameter: preset ? '' : String(last),
+      participantCode: profile?.participantCode || '',
     });
   },
 
-  onShow() { void checkPendingEvaluation(); },
+  onShow() {
+    const profile = getUserProfile();
+    this.setData({ participantCode: profile?.participantCode || '' });
+  },
+
+  onParticipantCodeInput(e: WechatMiniprogram.Input) {
+    this.setData({ participantCode: e.detail.value });
+  },
+
+  /** 保存当前编码；所有进入选图或创建任务的路径都必须经过此校验。 */
+  saveProfile(): UserProfile | null {
+    try {
+      const profile = saveUserProfile({ participantCode: this.data.participantCode });
+      this.setData({ participantCode: profile.participantCode });
+      return profile;
+    } catch (err) {
+      console.error('[upload] save participant code failed', err);
+      const message = err instanceof Error ? err.message : '请填写参与者编码';
+      wx.showToast({ title: message, icon: 'none' });
+      return null;
+    }
+  },
 
   // 选择预设直径
   selectDiameter(e: WechatMiniprogram.TouchEvent) {
@@ -66,6 +99,8 @@ Page({
 
   // 拍照或从相册选择
   chooseImage() {
+    if (this.data.submitting) return;
+    if (!this.saveProfile()) return;
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
@@ -84,13 +119,20 @@ Page({
   },
 
   removeImage() {
+    if (this.data.submitting) return;
     this.setData({ imageUrl: '' });
+  },
+
+  previewImage() {
+    if (this.data.imageUrl) wx.previewImage({ current: this.data.imageUrl, urls: [this.data.imageUrl] });
   },
 
   async startAnalyze() {
     if (this.data.submitting) {
       return;
     }
+    const profile = this.saveProfile();
+    if (!profile) return;
     if (!this.data.imageUrl) {
       wx.showToast({ title: '请先选择菜品照片', icon: 'none' });
       return;
@@ -107,14 +149,16 @@ Page({
 
     this.setData({ submitting: true });
     try {
-      if (!await checkPendingEvaluation()) return;
       wx.showLoading({ title: '上传中', mask: true });
       const { fileId, imageUrl } = await uploadMealImage(this.data.imageUrl);
-      const { analysisId } = await createMealAnalysis({
+      const createParams = {
         imageUrl,
         imageFileId: fileId,
         plateDiameterCm,
-      });
+        participantCode: profile.participantCode,
+        ...(this.sessionFromRoute ? { mealSessionId: this.data.mealSessionId || ensureMealSession() } : {}),
+      };
+      const { analysisId } = await createMealAnalysis(createParams);
       wx.hideLoading();
       wx.navigateTo({ url: `/pages/analyzing/analyzing?analysisId=${analysisId}` });
     } catch (err) {

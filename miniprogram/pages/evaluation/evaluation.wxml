@@ -1,38 +1,33 @@
-<view class="container">
-  <view wx:if="{{!loaded}}" class="card">
-    <view class="title-md">正在读取这一餐</view>
-    <button class="btn btn-secondary" bindtap="loadMeal">重新加载</button>
+<view class="container with-dock evaluation-page">
+  <view wx:if="{{!loaded}}" class="card state-card">
+    <block wx:if="{{loadError}}"><view class="state-title">暂时无法读取这一餐</view><view class="state-copy">{{loadError}}</view><button class="btn btn-secondary" bindtap="loadMeal">重新加载</button></block>
+    <block wx:else><view class="loading-mark"></view><view class="state-title">正在读取这一餐</view></block>
   </view>
   <block wx:else>
-    <view class="card">
-      <view class="muted">{{dateText}}</view>
-      <view class="title-lg evaluation-title">饭后评估</view>
-      <view class="title-md">{{recognizedName}}</view>
-      <view class="instructions">以拍照时的份量为准，选一选每种食材吃了多少。</view>
-      <view class="portion-help">0% 没吃 · 50% 吃了一半 · 100% 吃完了</view>
+    <view class="page-heading reveal"><view class="eyebrow">吃完，再记一笔</view><view class="title-lg">这次吃了多少？</view><view class="page-description">以拍照时的份量为准，逐一确认每种食材。</view></view>
+    <view class="card evaluation-overview">
+      <view class="participant-identity"><view class="participant-label">参与者编号（ID）</view><text class="participant-code" user-select="true">{{participantCode || '未记录编号'}}</text></view>
+      <view class="identity-hint">{{participantCode ? '对应拍照时填写的编号，请核对照片后填写。' : '这条旧记录未保存参与者编号，请结合照片确认。'}}</view>
+      <image wx:if="{{imageUrl}}" class="evaluation-photo" src="{{imageUrl}}" mode="aspectFit" bindtap="previewImage" aria-label="查看这道菜拍照时的原图" />
+      <view class="title-md">{{recognizedName}}</view><view class="muted meal-date">{{dateText}}</view>
+      <view class="portion-guide"><view><text class="portion-number">0%</text><text>没吃</text></view><view><text class="portion-number">50%</text><text>一半</text></view><view><text class="portion-number">100%</text><text>吃完</text></view></view>
       <view class="portion-help">添过菜可选超过 100%，最多 500%（5 倍）。</view>
+      <button wx:if="{{!completed || rows.length === 0}}" class="text-button retake-inline" bindtap="retake" loading="{{busy}}" disabled="{{busy || !loaded}}"><image class="ui-icon icon-sm" src="/assets/icons/refresh.svg" />我要重新拍照</button>
     </view>
-    <view wx:for="{{rows}}" wx:key="name" wx:for-item="row" class="card">
-      <view class="row-head">
-        <text class="ing-name">{{row.name}}</text>
-        <button class="delete-ingredient" size="mini" data-name="{{row.name}}" bindtap="removeIngredient" disabled="{{busy}}" aria-label="删除{{row.name}}">删除</button>
-      </view>
+    <view class="evaluation-progress"><text>逐项确认</text><text class="muted">已确认 {{rows.length - remaining}} / {{rows.length}} 种</text></view>
+    <view wx:for="{{rows}}" wx:key="name" wx:for-item="row" class="card portion-card {{row.confirmed ? 'portion-confirmed' : ''}}">
+      <view class="row-head"><text class="ing-name">{{row.name}}</text><button class="delete-ingredient" size="mini" data-name="{{row.name}}" bindtap="removeIngredient" disabled="{{busy}}" aria-label="删除{{row.name}}">删除</button></view>
       <view class="muted">拍照时约 {{row.grams}} g</view>
-      <view class="percent-line"><text class="percent-value">{{row.percent}}%</text><text class="confirm-status">{{row.confirmed ? '已确认' : '待确认，请滑动或点选比例'}}</text></view>
-      <slider min="0" max="500" step="1" value="{{row.percent}}" activeColor="#2fae76" block-size="28" disabled="{{busy}}" data-name="{{row.name}}" bindchange="onSliderChange" aria-label="{{row.name}}食用比例，百分之0到500" />
+      <view class="percent-line"><text class="percent-value">{{row.confirmed ? row.percent + '%' : '待确认'}}</text><text class="confirm-status {{row.confirmed ? 'is-confirmed' : ''}}">{{row.confirmed ? '✓ 已确认' : '请点选比例或滑动'}}</text></view>
+      <view class="presets"><button wx:for="{{presets}}" wx:key="*this" wx:for-item="p" class="preset {{row.confirmed && row.percent === p ? 'selected' : ''}}" data-name="{{row.name}}" data-value="{{p}}" bindtap="choosePercent" disabled="{{busy}}" aria-label="{{row.name + '吃了百分之' + p + (row.confirmed && row.percent === p ? '，已选择' : '')}}">{{p}}%<text wx:if="{{p === 0 || p === 50 || p === 100}}" class="preset-label">{{p === 0 ? '没吃' : (p === 50 ? '一半' : '吃完')}}</text></button></view>
+      <view class="slider-caption">滑动微调比例</view>
+      <slider min="0" max="500" step="1" value="{{row.percent}}" activeColor="#246b56" backgroundColor="#e2e8da" block-color="#246b56" block-size="26" disabled="{{busy}}" data-name="{{row.name}}" bindchange="onSliderChange" aria-label="{{row.name}}食用比例，百分之0到500" />
       <view class="scale"><text>0%</text><text>500%</text></view>
-      <view class="presets">
-        <button wx:for="{{presets}}" wx:key="*this" wx:for-item="p" class="preset {{row.confirmed && row.percent === p ? 'selected' : ''}}" data-name="{{row.name}}" data-value="{{p}}" bindtap="choosePercent" disabled="{{busy}}">{{p}}%</button>
-      </view>
-      <view wx:if="{{row.confirmed}}" class="intake">估算摄入 {{row.consumedG}} g</view>
+      <view wx:if="{{row.confirmed}}" class="intake reveal">估算摄入 <text>{{row.consumedG}} g</text></view>
     </view>
     <view wx:if="{{rows.length === 0}}" class="card">没有需要评估的食材，可以完成这一餐。</view>
-    <view class="card evaluation-summary">
-      <view class="title-md">{{remaining ? '还有 ' + remaining + ' 种食材待确认' : '每种食材已确认'}}</view>
-      <view class="intake">已确认食材的估算摄入：{{totalConsumedG}} g</view>
-      <view class="save-status">{{saveText}}</view>
-      <button class="btn btn-primary" bindtap="completeEvaluation" loading="{{busy}}" disabled="{{busy || remaining > 0}}">完成评估</button>
-    </view>
+    <view class="card evaluation-summary"><view class="submit-identity">本次保存到参与者 <text class="submit-code">{{participantCode || '未记录编号'}}</text></view><view class="intake">已确认食材的估算摄入 <text>{{totalConsumedG}} g</text></view><view class="save-status">{{saveText}}</view></view>
     <view class="disclaimer">摄入重量由图像估重和您填写的比例换算，仅供饮食记录参考。</view>
+    <view class="action-dock"><view class="dock-hint">{{remaining ? '还有 ' + remaining + ' 种食材待确认' : '每种食材已确认，可以保存评估'}}</view><button class="btn btn-primary" hover-class="btn-hover" bindtap="completeEvaluation" loading="{{busy}}" disabled="{{busy || remaining > 0}}">{{busy ? '正在保存…' : '完成评估'}}</button></view>
   </block>
 </view>

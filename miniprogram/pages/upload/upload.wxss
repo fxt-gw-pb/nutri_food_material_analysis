@@ -1,76 +1,25 @@
-.picker {
-  margin-top: 24rpx;
-  height: 320rpx;
-  border: 2rpx dashed #cdd8d1;
-  border-radius: 20rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #fafcfb;
-}
-.picker-icon { font-size: 64rpx; }
-.picker-text { margin-top: 12rpx; color: var(--sub); }
-
-.preview { margin-top: 24rpx; }
-.preview-img {
-  width: 100%;
-  height: 420rpx;
-  border-radius: 20rpx;
-  background: #f0f2f1;
-}
-.preview-actions {
-  display: flex;
-  gap: 20rpx;
-  margin-top: 20rpx;
-}
-.btn-sm {
-  height: 72rpx;
-  font-size: 28rpx;
-  flex: 1;
-}
-
-.diameter-hint { margin: 8rpx 0 20rpx; }
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20rpx;
-}
-.chip {
-  padding: 16rpx 32rpx;
-  border-radius: 999rpx;
-  background: #f0f2f1;
-  color: var(--sub);
-  font-size: 28rpx;
-}
-.chip-active {
-  background: var(--primary);
-  color: #ffffff;
-}
-.custom-input {
-  display: flex;
-  align-items: center;
-  margin-top: 24rpx;
-  border: 1rpx solid var(--border);
-  border-radius: 16rpx;
-  padding: 0 24rpx;
-  height: 88rpx;
-}
-.custom-field { flex: 1; }
+.profile-hint { margin-top: 14rpx; font-size: 25rpx; }
+button.picker { width: 100%; max-width: none; margin: 0; min-height: 320rpx; border: 2rpx dashed #b8cbb0; border-radius: 22rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f2f6ed; color: var(--text); padding: 36rpx 12rpx; line-height: 1.5; }
+.capture-frame { width: 100rpx; height: 88rpx; border: 2rpx solid #a6bb98; border-radius: 26rpx; display: flex; align-items: center; justify-content: center; background: #fff; transform: rotate(-4deg); margin-bottom: 24rpx; }
+.capture-icon { width: 52rpx; height: 52rpx; transform: rotate(4deg); }
+.picker-text { font-size: 32rpx; font-weight: 600; }
+.picker-hint { font-size: 26rpx; color: var(--sub); margin-top: 10rpx; font-weight: 400; }
+.preview { position: relative; }
+.preview-img { display: block; width: 100%; height: 410rpx; border-radius: 20rpx; background: #f0f3eb; }
+.preview-badge { display: inline-flex; align-items: center; gap: 8rpx; margin-top: 16rpx; font-size: 26rpx; color: var(--primary); }
+.preview-actions { display: flex; gap: 16rpx; margin-top: 16rpx; }
+.preview-actions .btn-sm { min-height: 88rpx; font-size: 28rpx; flex: 1; width: 0; padding: 18rpx 8rpx; }
+.diameter-hint { margin: 16rpx 0 24rpx; }
+.chips { display: flex; flex-wrap: wrap; gap: 14rpx; }
+button.chip { width: auto; min-width: 124rpx; min-height: 88rpx; margin: 0; padding: 18rpx 24rpx; line-height: 1.6; border: 2rpx solid var(--border); border-radius: 18rpx; background: #f5f7f1; color: var(--sub); font-size: 30rpx; transition: background-color 160ms, border-color 160ms; }
+.chip text { font-size: 25rpx; }
+button.chip-active { background: var(--primary-soft); color: var(--primary-dark); border-color: var(--primary); font-weight: 600; }
+.custom-input { display: flex; align-items: center; margin-top: 22rpx; border: 2rpx solid #cbd8c8; border-radius: 18rpx; padding: 0 24rpx; height: 96rpx; }
+.custom-field { flex: 1; min-width: 0; font-size: 32rpx; }
 .custom-unit { color: var(--sub); margin-left: 12rpx; }
-
-.tips { margin-top: 12rpx; }
-.tip {
-  display: flex;
-  color: var(--sub);
-  padding: 8rpx 0;
-}
-.tip-dot {
-  color: var(--primary);
-  margin-right: 16rpx;
-  font-weight: 700;
-}
-
-.submit {
-  margin-top: 8rpx;
-}
+.photo-tips { padding: 4rpx 8rpx 28rpx; }
+.tips-title { display: flex; align-items: center; gap: 12rpx; font-size: 28rpx; font-weight: 600; }
+.tips-grid { margin-top: 12rpx; }
+.tip { display: flex; align-items: baseline; gap: 14rpx; padding: 5rpx 0; font-size: 26rpx; color: var(--sub); }
+.tip-dot { width: 8rpx; height: 8rpx; border-radius: 50%; background: #9aaf85; flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) { button.chip { transition: none; } }

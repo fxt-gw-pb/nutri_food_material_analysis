@@ -15,6 +15,7 @@ import { CONFIG } from './config';
 import { MealServiceApi } from './mealService.api';
 import * as mockImpl from './mealService.mock';
 import * as cloudImpl from './mealService.cloud';
+import { normalizeParticipantCode } from './userProfile';
 
 const impl: MealServiceApi = CONFIG.useCloud ? cloudImpl : mockImpl;
 
@@ -24,9 +25,14 @@ export async function createMealAnalysis(params: import('./mealService.api').Cre
   if (creating) throw new Error('正在创建识别，请稍候');
   creating = true;
   try {
-    const pending = await impl.getPendingMealEvaluation();
-    if (pending) throw new Error('请先完成上一餐的饭后评估');
-    return await impl.createMealAnalysis(params);
+    // 兼容没有饭局标识的旧调用；新版上传流程总会带 mealSessionId，
+    // 同一顿饭的多道菜因此不会互相阻塞。
+    if (!params.mealSessionId) {
+      const pending = await impl.getPendingMealEvaluation();
+      if (pending) throw new Error('请先完成上一餐的饭后评估');
+    }
+    const participantCode = normalizeParticipantCode(params.participantCode || '');
+    return await impl.createMealAnalysis({ ...params, participantCode });
   } finally { creating = false; }
 }
 export const getMealAnalysisStatus = impl.getMealAnalysisStatus;
@@ -35,9 +41,11 @@ export const saveRecordSelections = impl.saveRecordSelections;
 export const saveMealType = impl.saveMealType;
 export const getMealHistory = impl.getMealHistory;
 export const deleteMealRecord = impl.deleteMealRecord;
+export const discardMealAnalysis = impl.discardMealAnalysis;
 export const getPendingMealEvaluation = impl.getPendingMealEvaluation;
 export const saveExcludedIngredients = impl.saveExcludedIngredients;
 export const saveConsumptionEvaluation = impl.saveConsumptionEvaluation;
 export const saveAuditSnapshot = impl.saveAuditSnapshot;
+export const finishMealSession = impl.finishMealSession;
 
 export type { CreateMealAnalysisParams, AnalysisProgress } from './mealService.api';

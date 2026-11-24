@@ -3,42 +3,65 @@ import { getEvaluationDraft, saveEvaluationDraft, clearEvaluationDraft } from '.
 import { MealAnalysis } from '../../types/index';
 import { resolveMeal } from '../../utils/texture';
 import { formatDateTime } from '../../utils/format';
+import { confirmRetake } from '../../utils/retakeNavigation';
 
 interface EvaluationRow { name: string; grams: number; percent: number; confirmed: boolean; consumedG: number }
 
 Page({
   data: {
-    loaded: false, busy: false, recognizedName: '', dateText: '',
+    loaded: false, loadError: '', busy: false, recognizedName: '', dateText: '',
+    participantCode: '', imageUrl: '',
     rows: [] as EvaluationRow[], presets: [0, 25, 50, 75, 100, 200, 500],
     totalConsumedG: 0, remaining: 0, completed: false, saveText: '',
   },
   analysisId: '',
   meal: null as MealAnalysis | null,
   percentages: {} as Record<string, number>,
-  saveQueue: Promise.resolve() as Promise<void>,
+  saveQueue: null as Promise<void> | null,
   revision: 0,
   onLoad(query: Record<string, string | undefined>) {
+    this.saveQueue = Promise.resolve();
     this.analysisId = query.analysisId || '';
     void this.loadMeal();
   },
   async loadMeal() {
-    if (!this.analysisId) return;
+    if (!this.analysisId) {
+      this.setData({ loadError: '缺少记录编号，请返回饮食记录重新打开。' });
+      return;
+    }
+    this.setData({ loadError: '' });
     try {
       this.meal = await getMealAnalysisResult(this.analysisId);
+      if (this.meal.status === 'discarded') {
+        wx.showToast({ title: '这条识别已作废', icon: 'none' });
+        wx.reLaunch({ url: '/pages/index/index' });
+        return;
+      }
       if (this.meal.status !== 'completed') throw new Error('识别尚未完成');
+      // 同一饭局的所有菜拍完前，不允许从历史或深链提前填写某一道菜的比例。
+      if (this.meal.mealSessionId && !this.meal.mealSessionFinishedAt) {
+        wx.showToast({ title: '请先结束本顿饭的菜品识别', icon: 'none' });
+        wx.navigateBack({ delta: 1 });
+        return;
+      }
       const completed = this.meal.evaluationStatus === 'completed';
       const local = getEvaluationDraft(this.analysisId);
       this.percentages = { ...(this.meal.consumption?.percentages || {}),
         ...(!completed && local ? local.percentages : {}) };
       this.setData({ loaded: true, recognizedName: this.meal.dish?.dishName || '这一餐',
+        participantCode: this.meal.participantCode || '', imageUrl: this.meal.imageUrl,
         dateText: formatDateTime(this.meal.createdAt), completed,
         saveText: completed ? '已完成饭后评估' : '请逐项确认吃了多少',
       });
       this.refreshRows();
     } catch (err) {
       console.error('[evaluation] load failed', err);
+      this.setData({ loadError: '请检查网络后重试，已填写的草稿仍会保留。' });
       wx.showToast({ title: '加载失败，请联网后重试', icon: 'none' });
     }
+  },
+  previewImage() {
+    if (this.data.imageUrl) wx.previewImage({ current: this.data.imageUrl, urls: [this.data.imageUrl] });
   },
   refreshRows() {
     if (!this.meal) return;
@@ -78,7 +101,7 @@ Page({
       this.setData({ saveText: '本机保存失败，正在尝试同步…' });
     }
     // 串行写入，防止快速滑动时旧请求覆盖新比例。失败保留本地草稿。
-    this.saveQueue = this.saveQueue.catch(() => undefined).then(async () => {
+    this.saveQueue = (this.saveQueue || Promise.resolve()).catch(() => undefined).then(async () => {
       try {
         await saveConsumptionEvaluation(this.analysisId, percentages, false);
         if (revision === this.revision) {
@@ -114,6 +137,15 @@ Page({
       console.error('[evaluation] delete failed', err);
       wx.showToast({ title: '删除未保存，请重试', icon: 'none' });
     } finally { this.setData({ busy: false }); }
+  },
+  async retake() {
+    if (this.data.busy || !this.data.loaded || (this.data.completed && this.data.rows.length > 0)) return;
+    this.setData({ busy: true });
+    try {
+      await confirmRetake(this.analysisId, this.saveQueue || undefined, this.meal?.mealSessionId);
+    } finally {
+      this.setData({ busy: false });
+    }
   },
   async completeEvaluation() {
     if (this.data.busy || !this.data.loaded) return;

@@ -1,0 +1,54 @@
+{
+  "version": "2026.10.2",
+  "date": "2026-10-02",
+  "timezone": "Asia/Taipei",
+  "stage": "development_uploaded_experience_pending_manual",
+  "validation": {
+    "typeCheck": "passed",
+    "tests": {
+      "passed": 85,
+      "failed": 0
+    },
+    "wechatSimulator": "current project compiled; history ID block visually inspected"
+  },
+  "archive": {
+    "path": "食材识别小程序-2026.10.2.zip",
+    "files": 86,
+    "bytes": 204322,
+    "sha256": "49bc0a7a54bb43c22ba8a769521d3388f15be46a70a28a47f4dee386e7ee8590"
+  },
+  "sourceSha256": {
+    "miniprogram/types/index.ts": "a6ef70ac2275978e3246afd01ef83dc401f6085214cffb77eb99d410e5e3a9e4",
+    "miniprogram/services/mealService.cloud.ts": "00a1086342ac2d8c8acc847877cb58264e9d55593cb0f22d2b2b95eb57607179",
+    "miniprogram/services/mealService.mock.ts": "a8289a465833c5f3955b246d6fe5b19c9811fc26355ed68522a40ff75c6ea0a6",
+    "miniprogram/utils/evaluation.ts": "2816e87cf7dcac7025924d9d2011701612354e706a97311e70f3508ee9332f1d",
+    "miniprogram/app.wxss": "b1d88a5b72b23e59b5bf7906d893c0120fceb8b129e61229ae6e45fa7b6ac871",
+    "miniprogram/pages/index/index.wxml": "638056d00c3bfa75c1e282a00e6db28510bbde6bb1a9b2a6f9d94e9f911ab7ea",
+    "miniprogram/pages/upload/upload.wxml": "27df6ad9d9002508d7487a520d9d86090bc77bb2b2c235f1c7e781bb8507b1cc",
+    "miniprogram/pages/history/history.wxml": "4bec2f678028a59bca1fc8065b86bb9eadac31513b69127927b4fb09a7aa85de",
+    "miniprogram/pages/history/history.wxss": "da34f7afac4b6c49840ad59968a35d48dfbfce2a62ccaabb141e1906f1e24724",
+    "miniprogram/pages/result/result.ts": "8982cd5a6b7ec8c5c51fdd96f3d67b41cd35effe0745fe96cec862bcd03503de",
+    "miniprogram/pages/result/result.wxml": "33d806f57793a768611c6b7548c50409d580a58c345190ec8d0ba45f4ba4412b",
+    "miniprogram/pages/detail/detail.ts": "578cbcbd724298cc50baaaad203f5051297cca64398ba6947c60434a78dd8c6f",
+    "miniprogram/pages/detail/detail.wxml": "4603777d7ed6bad0a0526da3e6a9935198be22369edeb6905305aab8a992dec2",
+    "miniprogram/pages/evaluation/evaluation.ts": "affbab6973b4f6029e44f2a5e22abfe6bf7e9b082aba4fe6dbbade02636d0452",
+    "miniprogram/pages/evaluation/evaluation.wxml": "6afe3d6659454a99fdffb36a352d6191b93060efb87d0f6a58dfa5b2e0191323",
+    "miniprogram/pages/evaluation/evaluation.wxss": "bce37937204b723239a91ed545b8fe3dfbb3c186bccbf64f4abcf6b4c37f2fde",
+    "tests/evaluation-identity.test.cjs": "5020f2c8f68103e83df4ea1e23542297786f6fa389767699cde1510a1f18484f",
+    "tests/evaluation-identity-page.test.cjs": "f0909c6ee2560ee909f264f064a341d4d1e37252f073d7031601edf6ff315947",
+    "package.json": "a9fd86b9e42b51e2406fd37ae7bd3432b4d8f40ebff01a40f7fd19758d1095df",
+    "package-lock.json": "8652a734a21f9c2827b04a365fb3b1d009950587f769516078d29654b0b6a0a4",
+    "README.md": "720d33ddd9e13407659014d857fb0f3b665df19909f92647a6a523bdcaeff1e0",
+    "docs/release-2026-10-02.md": "01029e8cc31b0e4cbd7a57856d2b5d9fc130c0cd77fa2cebdbdb394673f19dcb"
+  },
+  "upload": {
+    "version": "2026.10.2",
+    "date": "2026-10-02",
+    "exitCode": 0,
+    "result": "upload succeeded",
+    "codePackageBytes": 239707,
+    "receipt": "2026.10.2-上传回执.json",
+    "experienceVersion": "pending manual selection; browser site-safety policy blocked platform access",
+    "formalVersion": "user will publish manually"
+  }
+}

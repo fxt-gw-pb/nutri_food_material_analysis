@@ -39,6 +39,31 @@ const CANDIDATE_COUNT = 8;
 /** 参与匹配的识别食材上限：模型偶尔会把葱姜蒜都列出来，太多既慢也没意义 */
 const MAX_QUERY_INGREDIENTS = 10;
 
+/** 成型主食的原料名不等于食用时的质构；旧识别结果可能仍把馒头写成面粉。 */
+const FORMED_STAPLE = /(馒头|花卷|包子|面包|饼干|米饭|面条)$/;
+const STAPLE_RAW_MATERIAL = /^(面粉|小麦粉|面团|酵母|生米)$/;
+
+function matchingName(ingredientName: string, dishName: string): string {
+  const dish = normalize(dishName);
+  return FORMED_STAPLE.test(dish) && STAPLE_RAW_MATERIAL.test(normalize(ingredientName))
+    ? dishName
+    : ingredientName;
+}
+
+/** 少量同义菜名：煎蛋与摊鸡蛋说的是同一种成品。 */
+function prepareDishName(name: string): Prepared {
+  return prepare(normalize(name).replace(/(煎蛋|摊鸡蛋)$/, '鸡蛋'));
+}
+
+/** 名字相近不代表可作为同一种食物的实测值。 */
+export function ingredientSimilarity(a: Prepared, b: Prepared): number {
+  const seed = (name: string) => name === '花生仁';
+  const sprout = (name: string) => /^花生[芽苗]$/.test(name);
+  if ((seed(a.norm) && sprout(b.norm)) || (sprout(a.norm) && seed(b.norm))) return 0;
+  if ((a.norm === '面粉' && b.norm === '粉丝') || (b.norm === '面粉' && a.norm === '粉丝')) return 0;
+  return similarityPrepared(a, b);
+}
+
 /** 烹饪方式族群：同族视为「比较接近」，给一半的方式分 */
 const METHOD_FAMILIES: string[][] = [
   ['煮', '炖', '煲', '焖', '油焖', '黄焖', '烩', '煨', '慢炖', '汆', '涮', '焯', '熬', '高压锅'],
@@ -125,7 +150,7 @@ function ensureIndex() {
     entries[dish] = {
       dish,
       category: recs[0] ? recs[0].rec.category : '',
-      name: prepare(dish),
+      name: prepareDishName(dish),
       records: recs,
     };
   });
@@ -210,14 +235,17 @@ function scoreRecord(
   ing: { prepared: Prepared; method: string },
   dishName: Prepared,
 ): { score: number; ingSim: number; mScore: number } {
-  const ingSim = similarityPrepared(ing.prepared, item.ingredient);
+  const ingSim = ingredientSimilarity(ing.prepared, item.ingredient);
   const mScore = methodScore(ing.method, item.rec.method);
   const entry = ensureIndex().entries[item.rec.dish];
   const dishSim = entry ? similarityPrepared(dishName, entry.name) : 0;
   return { score: W_INGREDIENT * ingSim + W_METHOD * mScore + W_DISH * dishSim, ingSim, mScore };
 }
 
-function reasonText(queryName: string, rec: TextureRecord, ingSim: number, mScore: number): string {
+function reasonText(queryName: string, rec: TextureRecord, ingSim: number, mScore: number, comparedName = queryName): string {
+  if (comparedName !== queryName) {
+    return `识别到的「${queryName}」按成型主食「${comparedName}」查库，参考「${rec.dish}」的实测值；配方可能不同，请核对`;
+  }
   const who =
     ingSim >= EXACT_THRESHOLD
       ? `库中「${rec.dish}」里的「${rec.ingredient}」就是它`
@@ -286,7 +314,8 @@ function matchOneIngredient(
   dishEntry: DishEntry | undefined,
 ): IngredientMatch {
   const idx = ensureIndex();
-  const query = { prepared: prepare(ing.name), method: ing.cookingMethod || fallbackMethod };
+  const comparedName = matchingName(ing.name, dishName.norm);
+  const query = { prepared: prepare(comparedName), method: ing.cookingMethod || fallbackMethod };
 
   // 第一步：菜名已对上时，先只在这道菜里找这种食材。
   let picked: { item: IndexedRecord; score: number; reason: string } | null = null;
@@ -309,7 +338,7 @@ function matchOneIngredient(
         item: bestIn.item,
         // 同名菜内部命中时以食材相似度为准，别被「烹饪方式没标注」拉低分。
         score: Math.max(bestIn.score, bestIn.ingSim),
-        reason: reasonText(ing.name, bestIn.item.rec, bestIn.ingSim, bestIn.mScore),
+        reason: reasonText(ing.name, bestIn.item.rec, bestIn.ingSim, bestIn.mScore, comparedName),
       };
     }
   }
@@ -323,7 +352,7 @@ function matchOneIngredient(
       item,
       score: s.score,
       ingSim: s.ingSim,
-      reason: reasonText(ing.name, item.rec, s.ingSim, s.mScore),
+      reason: reasonText(ing.name, item.rec, s.ingSim, s.mScore, comparedName),
     });
   });
   const ranked = dedupe(scored);
@@ -352,7 +381,7 @@ function matchOneIngredient(
   }
 
   const exact =
-    similarityPrepared(query.prepared, picked.item.ingredient) >= EXACT_THRESHOLD;
+    comparedName === ing.name && ingredientSimilarity(query.prepared, picked.item.ingredient) >= EXACT_THRESHOLD;
   return {
     query: ing.name,
     queryMethod: query.method,
@@ -413,7 +442,7 @@ export function matchMeal(query: RecognizedDish): MealMatch {
 
 function computeMatch(query: RecognizedDish): MealMatch {
   const idx = ensureIndex();
-  const dishName = prepare(query.dishName);
+  const dishName = prepareDishName(query.dishName);
   const matchedDish = findSameDish(dishName);
   const dishEntry = matchedDish ? idx.entries[matchedDish] : undefined;
 
@@ -459,8 +488,9 @@ export function searchRecords(keyword: string, limit = 20): RecordCandidate[] {
   const idx = ensureIndex();
   const scored: { item: IndexedRecord; score: number; reason: string }[] = [];
   idx.records.forEach((item) => {
+    if (kw === '花生仁' && /^花生[芽苗]$/.test(item.ingredient.norm)) return;
     const entry = idx.entries[item.rec.dish];
-    let s = similarityPrepared(kwPrepared, item.ingredient);
+    let s = ingredientSimilarity(kwPrepared, item.ingredient);
     if (item.ingredient.norm.indexOf(kw) >= 0) s = Math.max(s, 0.9);
     if (entry) {
       let ds = similarityPrepared(kwPrepared, entry.name) * 0.9;
