@@ -1,0 +1,22 @@
+[Unit]
+Description=Food texture web app (食材识别网页版)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=foodweb
+Group=foodweb
+WorkingDirectory=/opt/food-web/app
+EnvironmentFile=/etc/food-web.env
+ExecStart=/usr/local/bin/node --disable-warning=ExperimentalWarning --enable-source-maps server/dist/server.cjs
+Restart=always
+RestartSec=3
+# 加固：只允许写数据目录与备份目录
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/food-web/data /var/backups/food-web
+
+[Install]
+WantedBy=multi-user.target

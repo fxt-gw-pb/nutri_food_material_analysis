@@ -4,3 +4,9 @@
 - 登录需要用户扫码时，打开登录界面交由用户完成，再继续查询。遵守浏览器站点安全限制。
 - 已验证的后台入口：`https://tcb.cloud.tencent.com/dev?envId=cloud1-d8gfgeids7d390dbc#/db/doc/collection/flexdb/tnt-a8vu66zq4/meal_records`。
 - 生产环境为 `cloud1-d8gfgeids7d390dbc`；识别记录集合为 `meal_records`。统计每日新增时按 `createdAt` 毫秒时间戳及 UTC+08:00 的自然日计算，每个文档算一条记录；饭后评估更新不算新增。区分全部新增记录与 `status=completed` 的有效识别记录。
+
+# 网页版（2026-11-27 起）
+
+- 小程序审核被拒后改为自建封闭网页，说明见 `docs/web-version.md`。页面仍改 `miniprogram/pages/`，网页通过 `web/` 运行时原样运行；数据访问改动需同步 `web/src/overrides/mealService.http.ts` 与 `server/src/meals.ts`。
+- `web/dist/`、`server/dist/`（含《中国食物成分表》数据）与 `web-data/`（参与者照片与记录）不得提交。
+- 本地联调：`VISION_MOCK=1 npm run web:dev`；提交前运行 `npm test`、`npm run type-check`、`npm run web:type-check`。

@@ -1,0 +1,13 @@
+/* 网页版专有的覆盖样式（最后加载）。只处理小程序与浏览器的差异，不改页面设计。 */
+
+/* 底部操作栏：电脑上与内容列同宽，而不是铺满整个窗口。 */
+.wx-page .action-dock { left: max(0px, calc((100vw - var(--wx-max)) / 2)); right: max(0px, calc((100vw - var(--wx-max)) / 2)); }
+
+/* 历史记录长按删除：不弹出系统的图片菜单、不选中文字。 */
+.wx-page button.record { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+/* 参与者专属链接登录：编号由服务端绑定，输入框只展示、不可改。 */
+.role-participant .profile-input { pointer-events: none; border-color: transparent; background: transparent; padding-left: 0; font-weight: 700; }
+.role-participant [data-route="pages/index/index"] .profile-hint,
+.role-participant [data-route="pages/questionnaire/questionnaire"] .identity-hint,
+.role-participant [data-route="pages/daily/daily"] .code-row { display: none; }

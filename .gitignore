@@ -45,3 +45,9 @@ miniprogram_npm/
 # 《中国食物成分表》提取结果：受原书版权约束，只留在本机（重新生成见 docs/release-2026-11-24.md）
 /scripts/source/中国食物成分表第6版_表一.csv
 /miniprogram/data/nutritionDb.data.ts
+
+# 网页版：构建产物内含《中国食物成分表》数据，运行数据含参与者照片与记录，均不进仓库
+/web/dist/
+/server/dist/
+/web-data/
+/food-web-backups/
