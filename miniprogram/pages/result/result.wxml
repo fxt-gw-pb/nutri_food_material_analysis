@@ -5,11 +5,12 @@
   </view>
   <block wx:else>
   <view class="page-heading reveal"><view class="eyebrow">识别结果</view><view class="title-lg">看看这一道菜</view></view>
+  <view class="ai-notice" aria-label="以下菜名和食材由 AI 识别，请核对"><text class="ai-notice-badge">AI</text><view class="ai-notice-body"><view class="ai-notice-title">以下菜名和食材由 AI 识别，请核对</view><view class="ai-notice-text">AI 只做识别、不生成内容；认错的食材可以删除或更换。重量、软硬（质构）和营养由算法、实验室实测数据和《中国食物成分表》计算，仅供参考。</view></view></view>
   <view class="card meal-overview">
     <view class="meal-head">
       <image wx:if="{{imageUrl}}" class="meal-img" src="{{imageUrl}}" mode="aspectFill" bindtap="previewImage" aria-label="查看菜品原图" />
       <view wx:else class="meal-img thumb-placeholder"><image class="ui-icon" src="/assets/icons/plate.svg" /></view>
-      <view class="meal-meta"><view class="recognized-name">{{recognizedName}}</view><view class="muted">{{dateText}}</view><view class="meal-method" wx:if="{{cookingMethod}}">{{cookingMethod}} · 识别可信度 {{confidenceText}}</view></view>
+      <view class="meal-meta"><view class="recognized-name">{{recognizedName}}</view><view class="muted">{{dateText}}</view><view class="meal-method" wx:if="{{cookingMethod}}">{{cookingMethod}} · AI 识别可信度 {{confidenceText}}</view></view>
     </view>
     <view class="participant-identity"><view class="participant-label">参与者编号（ID）</view><text class="participant-code" user-select="true">{{participantCode || '未记录编号'}}</text></view>
     <view class="estimate-banner">质构为同类食材实测参考 · 重量为图像估算</view>
@@ -140,7 +141,7 @@
 
   <view wx:if="{{totalCount === 0}}" class="card unmatched">没有识别出食材，换一张更清楚的照片试试</view>
 
-  <view class="disclaimer">重量为图像估算，不等同于真实称重；质构数据来自实验室对同类食材的 TPA 测试，仅供参考软硬与咀嚼难度，不等同于这份菜的实测值，也不构成医学建议。</view>
+  <view class="disclaimer">菜名和食材由 AI 图像识别得出，可能有误，可删除或更换；本程序不生成图片、文字或音视频内容。重量按餐盘尺寸用几何算法估算，不等同于真实称重；质构数据来自实验室对同类食材的 TPA 测试，仅供参考软硬与咀嚼难度，不等同于这份菜的实测值；营养素按《中国食物成分表标准版（第 6 版）》换算。以上均不构成医学建议。</view>
   <button class="text-button home-link" bindtap="goHome">返回首页</button>
   <view class="action-dock">
     <block wx:if="{{mealSessionId && !sessionFinished}}">

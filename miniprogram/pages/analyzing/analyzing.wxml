@@ -1,7 +1,7 @@
 <view class="container analyzing">
   <view class="eyebrow">正在了解这道菜</view>
   <view class="scan-scene" aria-hidden="true"><view class="scan-orbit"></view><image class="scan-plate" src="/assets/illustrations/meal-plate.svg" /><view class="scan-line"></view><view class="scan-spark">✦</view></view>
-  <view class="status-text">{{statusText}}</view><view class="status-caption">从一张照片，了解每一种食材</view>
+  <view class="status-text">{{statusText}}</view><view class="status-caption">AI 只识别菜名和食材，不生成任何内容</view>
   <view class="progress-section"><view class="progress-label"><text>识别进度</text><text class="progress-number">{{progress}}<text>%</text></text></view><view class="progress-track"><view class="progress-bar" style="width: {{progress}}%;"></view></view></view>
   <view class="card steps-card">
     <view wx:for="{{steps}}" wx:key="status" class="step-row {{item.done ? 'is-done' : ''}} {{item.active ? 'is-active' : ''}}"><view class="step-mark">{{item.done ? '✓' : index + 1}}</view><view class="step-label">{{item.label}}</view><text class="step-state">{{item.done ? '已完成' : (item.active ? '进行中' : '等待中')}}</text></view>

@@ -52,6 +52,12 @@ button::after { border: 0; }
 .participant-code { display: block; font-size: 36rpx; line-height: 1.45; font-weight: 700; word-break: break-all; }
 .profile-input { height: 96rpx; width: 100%; margin-top: 20rpx; padding: 0 24rpx; border: 2rpx solid #cbd8c8; border-radius: 20rpx; background: #f9fbf6; color: var(--text); font-size: 34rpx; }
 .input-placeholder { color: #738175; font-size: 28rpx; }
+/* AI 用途明示：放在各页第一屏，说明只做识别、不生成内容，以及数据来源。 */
+.ai-notice { display: flex; align-items: flex-start; gap: 18rpx; margin: 0 0 24rpx; padding: 24rpx 26rpx; border: 2rpx solid #bcd7c8; border-radius: 22rpx; background: #eef6f1; color: var(--primary-dark); }
+.ai-notice-badge { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; min-width: 56rpx; height: 44rpx; padding: 0 10rpx; margin-top: 2rpx; border-radius: 12rpx; background: var(--primary); color: #fff; font-size: 24rpx; font-weight: 700; letter-spacing: 1rpx; }
+.ai-notice-body { flex: 1; min-width: 0; }
+.ai-notice-title { font-size: 30rpx; line-height: 1.45; font-weight: 700; }
+.ai-notice-text { margin-top: 6rpx; font-size: 26rpx; line-height: 1.65; color: #2f5a4a; }
 .disclaimer { background: #f0f2e9; color: #63705c; border-radius: 20rpx; padding: 22rpx 24rpx; font-size: 24rpx; line-height: 1.75; }
 .divider { height: 1rpx; background: var(--border); margin: 24rpx 0; }
 .thumb-placeholder { display: flex; align-items: center; justify-content: center; background: var(--primary-soft); }

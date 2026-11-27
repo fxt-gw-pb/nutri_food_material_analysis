@@ -10,6 +10,7 @@
     </view>
     <view class="hero-foot"><view class="status-dot"></view>同类菜肴实测数据 · 每种食材单独查看</view>
   </view>
+  <view class="ai-notice" aria-label="AI 只做识别，不生成任何内容"><text class="ai-notice-badge">AI</text><view class="ai-notice-body"><view class="ai-notice-title">AI 只做识别，不生成任何内容</view><view class="ai-notice-text">拍照后，AI 只识别照片里的菜名和食材；本程序没有 AI 问答、写作、绘画、换脸等生成功能。重量、软硬（质构）和营养由算法、实验室实测数据和《中国食物成分表》计算。</view></view></view>
   <view class="card profile-card reveal reveal-delay">
     <view class="section-head"><view class="section-title"><image class="ui-icon icon-sm" src="/assets/icons/person.svg" />这次为谁记录</view><text class="tag tag-neutral">参与者编号</text></view>
     <input class="profile-input" type="text" maxlength="32" value="{{participantCode}}" placeholder="请输入参与者编号（ID）" placeholder-class="input-placeholder" aria-label="参与者编号（ID）" bindinput="onParticipantCodeInput" />
@@ -40,5 +41,5 @@
       <view class="step"><text class="step-no">3</text><view><view class="step-title">吃完，再记一笔</view><view class="muted">全部拍完后保存，从饮食记录填写饭后评估</view></view></view>
     </view>
   </view>
-  <view class="home-disclaimer">质构为同类食材的实测参考，估重为图像估算，<text>均不等同于这份菜的实测值，也不构成医学建议。</text></view>
+  <view class="home-disclaimer">AI 只用于识别照片里的菜名和食材，不生成图片、文字或音视频。<text>估重按餐盘尺寸用几何算法换算，质构取自实验室实测数据，营养按《中国食物成分表》计算，均不构成医学建议。</text></view>
 </view>
