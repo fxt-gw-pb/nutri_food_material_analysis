@@ -1,6 +1,6 @@
 <view class="container with-dock upload-page">
   <view class="page-heading reveal"><view class="eyebrow">记录这一餐</view><view class="title-lg">先拍下一道菜</view><view class="page-description">确认编号、放好餐盘，剩下的交给我们。</view></view>
-  <view class="ai-notice" aria-label="照片只用于识别，不生成内容"><text class="ai-notice-badge">AI</text><view class="ai-notice-body"><view class="ai-notice-title">照片只用于识别，不生成内容</view><view class="ai-notice-text">AI 只识别照片里的菜名和食材，不修改照片，也不生成图片、文字或音视频。重量按您选的餐盘直径用几何算法估算。</view></view></view>
+  <view class="ai-notice" aria-label="照片只用于识别，不生成内容"><text class="ai-notice-badge">AI</text><view class="ai-notice-body"><view class="ai-notice-title">照片只用于识别，不生成内容</view><view class="ai-notice-text">AI 只识别照片里的菜名和食材，不修改照片，也不生成图片、文字或音视频。重量按二维码卡片或您选的餐盘直径，用几何算法估算。</view></view></view>
   <view class="card profile-card">
     <view class="section-title"><text class="section-number">1</text>确认参与者</view>
     <input class="profile-input" type="text" maxlength="32" value="{{participantCode}}" disabled="{{submitting}}" placeholder="请输入参与者编号（ID）" placeholder-class="input-placeholder" aria-label="参与者编号（ID）" bindinput="onParticipantCodeInput" />
@@ -19,15 +19,27 @@
     </view>
   </view>
   <view class="card">
-    <view class="section-title"><text class="section-number">3</text>选择餐盘直径</view>
-    <view class="muted diameter-hint">从盘子一侧边缘量到另一侧。尺寸越准，估重越准。</view>
+    <view class="section-title"><text class="section-number">3</text>尺寸参照</view>
+    <view class="muted diameter-hint">估重要知道盘子有多大，下面两种方法选一种。</view>
+    <view class="scale-options">
+      <button class="scale-option {{scaleMode === 'qr-card' ? 'scale-option-active' : ''}}" data-mode="qr-card" disabled="{{submitting}}" bindtap="selectScaleMode" aria-label="{{'用二维码卡片作参照' + (scaleMode === 'qr-card' ? '，已选择' : '')}}">
+        <view class="scale-option-head"><text class="scale-radio">{{scaleMode === 'qr-card' ? '●' : '○'}}</text><text class="scale-option-title">用二维码卡片</text><text class="tag scale-tag">推荐</text></view>
+        <view class="scale-option-desc">把 4×4 厘米的二维码卡片放在餐盘旁边，和餐盘一起拍进去，不用选盘子大小。</view>
+      </button>
+      <button class="scale-option {{scaleMode === 'plate' ? 'scale-option-active' : ''}}" data-mode="plate" disabled="{{submitting}}" bindtap="selectScaleMode" aria-label="{{'选择餐盘直径' + (scaleMode === 'plate' ? '，已选择' : '')}}">
+        <view class="scale-option-head"><text class="scale-radio">{{scaleMode === 'plate' ? '●' : '○'}}</text><text class="scale-option-title">选择餐盘直径</text></view>
+        <view class="scale-option-desc">手边没有卡片时用：从盘子一侧边缘量到另一侧。</view>
+      </button>
+    </view>
+    <block wx:if="{{scaleMode === 'plate'}}">
     <view class="chips">
       <button wx:for="{{diameterOptions}}" wx:key="*this" class="chip {{!useCustom && selectedDiameter === item ? 'chip-active' : ''}}" data-value="{{item}}" disabled="{{submitting}}" aria-label="{{item + '厘米' + (!useCustom && selectedDiameter === item ? '，已选择' : '')}}" bindtap="selectDiameter">{{item}}<text> cm</text></button>
       <button class="chip {{useCustom ? 'chip-active' : ''}}" disabled="{{submitting}}" bindtap="enableCustom">自定义</button>
     </view>
     <view wx:if="{{useCustom}}" class="custom-input reveal"><input type="digit" placeholder="输入直径" value="{{customDiameter}}" disabled="{{submitting}}" bindinput="onCustomInput" class="custom-field" aria-label="自定义餐盘直径，单位厘米" /><text class="custom-unit">cm</text></view>
+    </block>
   </view>
   <view class="photo-tips"><view class="tips-title"><image class="ui-icon icon-sm" src="/assets/icons/spark.svg" />这样拍，更清楚</view><view class="tips-grid"><view wx:for="{{tips}}" wx:key="*this" class="tip"><view class="tip-dot"></view><text>{{item}}</text></view></view></view>
   <view class="disclaimer">照片只用于 AI 识别菜名和食材，不会被修改，也不用于生成任何内容。重量按餐盘尺寸用几何算法估算，不等同于真实称重；质构为同类食材实测参考，不等同于这份菜的实测值。</view>
-  <view class="action-dock"><view class="dock-hint">{{imageUrl ? '照片已准备好，确认餐盘尺寸后即可识别' : '请先选择一张清晰的菜品照片'}}</view><button class="btn btn-primary" hover-class="btn-hover" loading="{{submitting}}" disabled="{{!imageUrl || submitting}}" bindtap="startAnalyze">{{submitting ? '正在上传照片…' : '开始识别'}}<image wx:if="{{!submitting}}" class="ui-icon icon-sm" src="/assets/icons/camera-white.svg" /></button></view>
+  <view class="action-dock"><view class="dock-hint">{{imageUrl ? (scaleMode === 'qr-card' ? '照片里要有二维码卡片，确认后即可识别' : '照片已准备好，确认餐盘尺寸后即可识别') : '请先选择一张清晰的菜品照片'}}</view><button class="btn btn-primary" hover-class="btn-hover" loading="{{submitting}}" disabled="{{!imageUrl || submitting}}" bindtap="startAnalyze">{{submitting ? '正在上传照片…' : '开始识别'}}<image wx:if="{{!submitting}}" class="ui-icon icon-sm" src="/assets/icons/camera-white.svg" /></button></view>
 </view>

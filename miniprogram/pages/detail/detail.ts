@@ -1,6 +1,6 @@
 import { getMealAnalysisResult, saveExcludedIngredients, saveAuditSnapshot, finishMealSession } from '../../services/mealService';
 import { confidenceLabel } from '../../utils/confidence';
-import { formatDateTime, mealTypeLabel } from '../../utils/format';
+import { formatDateTime, mealTypeLabel, plateNote } from '../../utils/format';
 import { resolveMeal, IngredientRow } from '../../utils/texture';
 import { confirmRetake } from '../../utils/retakeNavigation';
 import { clearMealSession } from '../../utils/mealSession';
@@ -11,7 +11,7 @@ Page({
   data: {
     imageUrl: '', participantCode: '', dateText: '', mealTypeText: '', recognizedName: '', cookingMethod: '',
     confidenceText: '', matchedDish: '', summary: '', matchedCount: 0, totalCount: 0,
-    totalWeightText: '', plateDiameterCm: 0, ingredients: [] as (IngredientRow & { detailOpen: boolean })[],
+    totalWeightText: '', plateDiameterCm: 0, plateNote: '', ingredients: [] as (IngredientRow & { detailOpen: boolean })[],
     loaded: false, loadError: '', busy: false, evaluationCompleted: false, totalConsumedG: 0,
     mealSessionId: '', sessionFinished: false,
     /** 已完成饭后评估时，这道菜吃下的质构系数与营养 */
@@ -19,7 +19,9 @@ Page({
   },
   analysisId: '',
   excludedIngredients: [] as string[],
-  onLoad(query: Record<string, string | undefined>) { this.analysisId = query.analysisId || ''; },
+  /** 从「这一餐」点进来：去评估时带上，评估完回到这里而不是跳到每日汇总 */
+  fromMeal: false,
+  onLoad(query: Record<string, string | undefined>) { this.analysisId = query.analysisId || ''; this.fromMeal = query.from === 'meal'; },
   onShow() { void this.loadMeal(); },
   async loadMeal() {
     if (!this.analysisId) {
@@ -43,7 +45,7 @@ Page({
         recognizedName: r.recognizedName, cookingMethod: r.cookingMethod,
         confidenceText: confidenceLabel(meal.dish ? meal.dish.recognitionConfidence : 'medium'),
         matchedDish: r.matchedDish, summary: r.summary, matchedCount: r.matchedCount, totalCount: r.totalCount,
-        totalWeightText: r.totalWeightText, plateDiameterCm: r.plateDiameterCm,
+        totalWeightText: r.totalWeightText, plateDiameterCm: r.plateDiameterCm, plateNote: plateNote(r.plateDiameterCm, meal.plateDiameterSource),
         ingredients: r.ingredients.map((row) => ({ ...row, detailOpen: this.data.ingredients.find((old) => old.name === row.name)?.detailOpen || false })),
         loaded: true, evaluationCompleted: meal.evaluationStatus === 'completed', totalConsumedG: meal.consumption?.totalConsumedG || 0,
         mealSessionId: meal.mealSessionId || '', sessionFinished: Boolean(meal.mealSessionFinishedAt),
@@ -99,7 +101,7 @@ Page({
       wx.showToast({ title: '请先结束本顿饭的菜品识别', icon: 'none' });
       return;
     }
-    wx.navigateTo({ url: `/pages/evaluation/evaluation?analysisId=${encodeURIComponent(this.analysisId)}` });
+    wx.navigateTo({ url: `/pages/evaluation/evaluation?analysisId=${encodeURIComponent(this.analysisId)}${this.fromMeal ? '&from=meal' : ''}` });
   },
 
   continueMeal() {

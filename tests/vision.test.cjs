@@ -255,3 +255,69 @@ test('识别失败保留原结果，识别途中作废不会被失败或成功�
     assert.equal(r.status, 'discarded'); assert.equal(r['result.dish'], undefined);
   }
 });
+
+test('二维码卡片模式：提示词以 4 cm 卡片为尺度、不含固定盘径，返回模型量出的盘径', async () => {
+  const previous = process.env.DASHSCOPE_API_KEY;
+  process.env.DASHSCOPE_API_KEY = 'fixture-not-a-real-key';
+  try {
+    const qrDish = { ...dish(), plateDiameterCm: 23.46, referenceCardVisible: true };
+    const result = await vision.callQwen('https://example.invalid/food.jpg', 0, { model: vision.TARGET_MODEL, scale: { mode: 'qr-card', cardCm: 4 },
+      postJson: async (url, body) => {
+        const text = body.messages[1].content[1].text;
+        assert.match(text, /边长 4 厘米的正方形二维码卡片/);
+        assert.match(text, /plateDiameterCm/);
+        assert.doesNotMatch(text, /实际直径是 \d+ 厘米/);
+        assert.match(text, /不要列入食材/);
+        return { ...response(), choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ dish: qrDish }) } }] };
+      } });
+    assert.equal(result.promptVersion, vision.QR_PROMPT_VERSION);
+    assert.deepEqual(result.scaleEstimate, { mode: 'qr-card', referenceCardCm: 4, plateDiameterCm: 23.5, referenceCardVisible: true });
+    assert.equal(result.dish.plateDiameterCm, undefined, '盘径不混进菜品结构');
+    // 份量校准照旧
+    assert.equal(result.dish.ingredients[0].estimatedG, 380);
+  } finally { if (previous === undefined) delete process.env.DASHSCOPE_API_KEY; else process.env.DASHSCOPE_API_KEY = previous; }
+});
+
+test('二维码卡片模式：缺盘径或超范围算输出无效；回退模型不支持该模式', async () => {
+  assert.throws(() => vision.parseResponse(JSON.stringify({ dish: dish() }), { cardCm: 4 }), /餐盘口径/);
+  assert.throws(() => vision.parseResponse(JSON.stringify({ dish: { ...dish(), plateDiameterCm: 300 } }), { cardCm: 4 }), /餐盘口径/);
+  const noCard = vision.parseResponse(JSON.stringify({ dish: { ...dish(), plateDiameterCm: 26, referenceCardVisible: false } }), { cardCm: 4 });
+  assert.equal(noCard.scale.referenceCardVisible, false);
+  assert.equal(vision.parseResponse('{"dish":null}', { cardCm: 4 }).scale, null);
+  await assert.rejects(vision.callQwen('', 0, { model: vision.LEGACY_MODEL, scale: { mode: 'qr-card' } }), /只支持固定快照/);
+  // 选餐盘直径时提示词与 v8 逐字相同
+  assert.equal(vision.userPrompt(24).includes('实际直径是 24 厘米'), true);
+});
+
+test('云函数：二维码卡片记录先不写盘径，识别后写入量出的盘径与来源；旧版前端仍走餐盘直径', async () => {
+  const created = {};
+  await loadCloud(created).main({ action: 'create', imageFileId: 'cloud://x', scaleMode: 'qr-card', participantCode: '001' });
+  assert.equal(created.scaleMode, 'qr-card');
+  assert.equal(created.referenceCardCm, 4);
+  assert.equal(created.plateDiameterCm, undefined);
+  assert.equal(created.promptVersion, vision.QR_PROMPT_VERSION);
+  const legacy = {};
+  await loadCloud(legacy).main({ action: 'create', imageFileId: 'cloud://x', plateDiameterCm: 24 });
+  assert.equal(legacy.scaleMode, 'plate');
+  assert.equal(legacy.plateDiameterCm, 24);
+  assert.equal(legacy.plateDiameterSource, 'user');
+  assert.equal(legacy.promptVersion, vision.PROMPT_VERSION);
+
+  for (const visible of [true, false]) {
+    const record = { status: 'pending', imageFileId: 'cloud://fixture', scaleMode: 'qr-card', referenceCardCm: 4 };
+    let args;
+    const fn = loadCloud(record, async (...a) => { args = a; return { dish: vision.normalizeDish(dish()), modelName: vision.TARGET_MODEL,
+      promptVersion: vision.QR_PROMPT_VERSION, scaleEstimate: { mode: 'qr-card', referenceCardCm: 4, plateDiameterCm: 22.5, referenceCardVisible: visible } }; });
+    await fn.main({ action: 'process', analysisId: 'qr' });
+    assert.deepEqual(clone(args[2]), { scale: { mode: 'qr-card', cardCm: 4 } });
+    assert.equal(record.status, 'completed');
+    assert.equal(record.plateDiameterCm, 22.5);
+    assert.equal(record.plateDiameterSource, visible ? 'qr-card' : 'model-guess');
+  }
+  const plate = { status: 'pending', imageFileId: 'cloud://fixture', plateDiameterCm: 24 };
+  let plateArgs;
+  await loadCloud(plate, async (...a) => { plateArgs = a; return { dish: vision.normalizeDish(dish()), modelName: vision.TARGET_MODEL }; }).main({ action: 'process', analysisId: 'p' });
+  assert.equal(plateArgs.length, 2);
+  assert.equal(plate.plateDiameterCm, 24);
+  assert.equal(plate.plateDiameterSource, undefined);
+});

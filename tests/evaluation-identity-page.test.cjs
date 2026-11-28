@@ -182,8 +182,11 @@ test('历史保留每条菜的编号、照片与跳转 ID', async () => {
   ]);
   page.goDetail({ currentTarget: { dataset: { id: 'B' } } });
   assert.deepEqual(navigation, ['/pages/detail/detail?analysisId=B']);
+  // 历史按「日期 → 哪一餐」分组后，每一餐和「这一餐」页仍显示编号，缺编号的旧记录明确标注。
   const template = fs.readFileSync(path.join(__dirname, '../miniprogram/pages/history/history.wxml'), 'utf8');
-  assert.match(template, /item\.participantCode \|\| '未记录编号'/);
+  assert.match(template, /meal\.participantCode \|\| '未记录编号'/);
+  const mealTemplate = fs.readFileSync(path.join(__dirname, '../miniprogram/pages/meal/meal.wxml'), 'utf8');
+  assert.match(mealTemplate, /participantCode \|\| '未记录编号'/);
 });
 
 test('旧记录缺编号时所有页面保持空身份并明确标注未记录编号', async () => {

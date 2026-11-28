@@ -7,9 +7,9 @@ import {
   saveConsumptionEvaluation,
   finishMealSession,
 } from '../../services/mealService';
-import { Dish, MealType } from '../../types/index';
+import { Dish, MealType, PlateDiameterSource } from '../../types/index';
 import { confidenceLabel } from '../../utils/confidence';
-import { formatDateTime, MEAL_TYPE_OPTIONS, suggestMealType } from '../../utils/format';
+import { formatDateTime, MEAL_TYPE_OPTIONS, plateNote, suggestMealType } from '../../utils/format';
 import { resolveMeal, IngredientRow, RecordSelections } from '../../utils/texture';
 import { RecordCandidate, searchRecords } from '../../services/textureMatch';
 import { confirmRetake } from '../../utils/retakeNavigation';
@@ -49,6 +49,7 @@ Page({
     /** 估重 */
     totalWeightText: '',
     plateDiameterCm: 0,
+    plateNote: '',
     /** 「已匹配 3/4 种食材」这样的一行 */
     matchNote: '',
 
@@ -71,6 +72,7 @@ Page({
   dish: null as Dish | null,
   /** 拍照时选的餐盘直径，估重的尺度基准 */
   plateDiameterCm: 0,
+  plateSource: undefined as PlateDiameterSource | undefined,
   /** 用户逐食材的手动改选：识别食材名 → 质构记录 id */
   selections: {} as RecordSelections,
   /** 搜索防抖：连续输入时不必每敲一个字就全库搜一遍 */
@@ -105,6 +107,7 @@ Page({
         this.excludedIngredients = meal.excludedIngredients || [];
         this.selections = meal.selectedRecords || {};
         this.plateDiameterCm = meal.plateDiameterCm || 0;
+        this.plateSource = meal.plateDiameterSource;
         const mealType = meal.mealType || suggestMealType();
         this.setData({
           imageUrl: meal.imageUrl,
@@ -170,6 +173,7 @@ Page({
       matchNote: this.buildMatchNote(r.matchedDish, r.matchedCount, r.totalCount),
       totalWeightText: r.totalWeightText,
       plateDiameterCm: r.plateDiameterCm,
+      plateNote: plateNote(r.plateDiameterCm, this.plateSource),
       ingredients,
     });
   },

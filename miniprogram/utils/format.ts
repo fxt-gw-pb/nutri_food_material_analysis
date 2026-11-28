@@ -1,6 +1,6 @@
 // 展示格式化工具。
 
-import { MealType } from '../types/index';
+import { MealType, PlateDiameterSource } from '../types/index';
 
 /** 餐次选项（有序，供选择器渲染） */
 export const MEAL_TYPE_OPTIONS: { type: MealType; label: string }[] = [
@@ -20,6 +20,13 @@ const MEAL_TYPE_LABEL: Record<MealType, string> = {
   dinner: '晚餐',
   evening_snack: '晚加餐',
 };
+
+/** 估重尺度说明：盘径是用户选的、对照二维码卡片量出的，还是没看到卡片时的粗估 */
+export function plateNote(diameterCm: number, source?: PlateDiameterSource): string {
+  if (source === 'qr-card') return `按二维码卡片量出餐盘约 ${diameterCm}cm 估算`;
+  if (source === 'model-guess') return `没看到二维码卡片，按餐盘约 ${diameterCm}cm 粗略估算`;
+  return `按 ${diameterCm}cm 餐盘估算`;
+}
 
 /** 餐次 → 文案 */
 export function mealTypeLabel(type?: MealType): string {

@@ -19,7 +19,7 @@
 // 云端安装依赖时 axios 会连带拉一串包，是「上传并部署」卡在 99% 的常见原因。
 // 少一个第三方依赖，云函数上传就快一截，也更不容易失败。
 const cloud = require('wx-server-sdk');
-const { configuredModel, callQwen, postJson, PROMPT_VERSION, LEGACY_PROMPT_VERSION, ADAPTER_VERSION, TARGET_MODEL } = require('./vision');
+const { configuredModel, callQwen, postJson, PROMPT_VERSION, LEGACY_PROMPT_VERSION, ADAPTER_VERSION, TARGET_MODEL, QR_PROMPT_VERSION, REFERENCE_CARD_CM } = require('./vision');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
@@ -81,6 +81,8 @@ async function ping() {
 async function createAnalysis(event) {
   const { OPENID } = cloud.getWXContext();
   const now = Date.now();
+  // 尺寸参照：'plate' 用户选的餐盘直径（旧版前端不传，默认此项）；'qr-card' 照片里的 4 cm 二维码卡片，盘径由识别时量出。
+  const qrCard = event.scaleMode === 'qr-card' && MODEL === TARGET_MODEL;
   const addRes = await db.collection(COLLECTION).add({
     data: {
       _openid: OPENID, // 显式写入，使「仅创建者可读写」规则放行该用户读取
@@ -89,10 +91,13 @@ async function createAnalysis(event) {
       participantCode: typeof event.participantCode === 'string' ? event.participantCode.trim().slice(0, 32) : '',
       mealSessionId: typeof event.mealSessionId === 'string' ? event.mealSessionId.trim().slice(0, 80) : '',
       // 估重的尺度基准。没传就按 26cm 家用菜盘兜底，否则整条估重链路无从下手。
-      plateDiameterCm: Number(event.plateDiameterCm) > 0 ? Number(event.plateDiameterCm) : 26,
+      // 二维码卡片模式先不写盘径，识别完成后写入模型对照卡片量出的值。
+      ...(qrCard
+        ? { scaleMode: 'qr-card', referenceCardCm: REFERENCE_CARD_CM }
+        : { scaleMode: 'plate', plateDiameterSource: 'user', plateDiameterCm: Number(event.plateDiameterCm) > 0 ? Number(event.plateDiameterCm) : 26 }),
       status: 'pending',
       modelName: MODEL,
-      promptVersion: MODEL === TARGET_MODEL ? PROMPT_VERSION : LEGACY_PROMPT_VERSION,
+      promptVersion: MODEL === TARGET_MODEL ? (qrCard ? QR_PROMPT_VERSION : PROMPT_VERSION) : LEGACY_PROMPT_VERSION,
       adapterVersion: ADAPTER_VERSION,
       result: { dish: null },
       selectedRecords: {},
@@ -129,9 +134,13 @@ async function processAnalysis(analysisId) {
 
     stage = '调用千问识别';
     await setStatus(analysisId, 'recognizing');
+    const qrCard = doc.scaleMode === 'qr-card';
     const plateDiameterCm = Number(doc.plateDiameterCm) > 0 ? Number(doc.plateDiameterCm) : 26;
-    const response = await callQwen(imageUrl, plateDiameterCm);
+    const response = qrCard
+      ? await callQwen(imageUrl, 0, { scale: { mode: 'qr-card', cardCm: Number(doc.referenceCardCm) || REFERENCE_CARD_CM } })
+      : await callQwen(imageUrl, plateDiameterCm);
     const { dish, ...modelAudit } = response;
+    const scale = qrCard && modelAudit.scaleEstimate;
 
     const latest = (await db.collection(COLLECTION).doc(analysisId).get()).data;
     if (latest.status === 'discarded') return { ok: true, discarded: true };
@@ -148,6 +157,12 @@ async function processAnalysis(analysisId) {
         promptVersion: modelAudit.promptVersion,
         adapterVersion: ADAPTER_VERSION,
         modelAudit: _.set(modelAudit),
+        // 二维码卡片模式：把模型对照卡片量出的盘径写成本条记录的估重尺度；看不到卡片时标为粗估。
+        ...(scale ? {
+          plateDiameterCm: scale.plateDiameterCm,
+          plateDiameterSource: scale.referenceCardVisible ? 'qr-card' : 'model-guess',
+          referenceCardVisible: scale.referenceCardVisible,
+        } : {}),
         status: 'completed',
         errorStage: '',
         errorMessage: '',

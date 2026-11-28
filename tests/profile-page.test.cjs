@@ -117,10 +117,11 @@ test('上传期间修改编码不会改变本次创建参数中的前导零编�
   await submission;
 
   assert.deepEqual(uploadedImages, ['/tmp/meal.jpg']);
+  // 默认用二维码卡片作尺寸参照：不传盘径，识别时对照卡片量出。
   assert.deepEqual(createdMeals, [{
     imageUrl: 'cloud://snapshot',
     imageFileId: 'cloud://snapshot',
-    plateDiameterCm: page.data.selectedDiameter,
+    scaleMode: 'qr-card',
     participantCode: '001207',
   }]);
   assert.equal(page.data.participantCode, '009999');
@@ -138,4 +139,21 @@ test('新打开的上传页 onLoad 恢复本机已保存的编码', () => {
   assert.equal(page.data.participantCode, '000042');
   assert.deepEqual(chosenImages, []);
   assert.deepEqual(uploadedImages, []);
+});
+
+test('选餐盘直径时照旧传盘径，并记住这次的参照方式', async (t) => {
+  t.mock.method(service, 'uploadMealImage', async () => ({ fileId: 'cloud://p', imageUrl: 'cloud://p' }));
+  const page = makePage(definitions[1]);
+  page.onLoad();
+  assert.equal(page.data.scaleMode, 'qr-card');
+  page.onParticipantCodeInput({ detail: { value: '001207' } });
+  page.chooseImage();
+  page.selectScaleMode({ currentTarget: { dataset: { mode: 'plate' } } });
+  page.selectDiameter({ currentTarget: { dataset: { value: 22 } } });
+  await page.startAnalyze();
+  assert.deepEqual(createdMeals, [{ imageUrl: 'cloud://p', imageFileId: 'cloud://p', plateDiameterCm: 22, scaleMode: 'plate', participantCode: '001207' }]);
+  const next = makePage(definitions[1]);
+  next.onLoad();
+  assert.equal(next.data.scaleMode, 'plate');
+  assert.equal(next.data.selectedDiameter, 22);
 });

@@ -3,7 +3,7 @@
 // 此接口，由 mealService.ts 按 config.useCloud 选择其一对外导出。
 // 任何一侧签名漂移都会在 type-check 时报错，从而保证两套实现始终对齐。
 
-import { MealAnalysis, AnalysisStatus, MealHistoryItem, MealType } from '../types/index';
+import { MealAnalysis, AnalysisStatus, MealHistoryItem, MealType, ScaleMode } from '../types/index';
 
 /** 状态轮询的返回值 */
 export interface AnalysisProgress {
@@ -18,8 +18,10 @@ export interface AnalysisProgress {
 export interface CreateMealAnalysisParams {
   imageUrl: string;
   imageFileId?: string;
-  /** 用户选的餐盘直径（cm），估重的尺度基准 */
-  plateDiameterCm: number;
+  /** 用户选的餐盘直径（cm），估重的尺度基准；二维码卡片模式不传 */
+  plateDiameterCm?: number;
+  /** 尺寸参照方式，缺省为 'plate' */
+  scaleMode?: ScaleMode;
   participantCode?: string;
   /** 当前饭局的标识；同一顿饭的多道菜共用。 */
   mealSessionId?: string;

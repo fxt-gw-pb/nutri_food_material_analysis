@@ -218,7 +218,8 @@ function buildTables(records, options = {}, library = { records: [] }) {
     tables.meals.push({
       ...common, updated_at: iso(record.updatedAt), dish_name: text(dish?.dishName), cooking_method: text(dish?.cookingMethod),
       meal_type: text(record.mealType), recognition_confidence: text(dish?.recognitionConfidence),
-      plate_diameter_cm: numeric(record.plateDiameterCm ?? snapshot?.plateDiameterCm), image_file_id: text(record.imageFileId),
+      plate_diameter_cm: numeric(record.plateDiameterCm ?? snapshot?.plateDiameterCm), plate_diameter_source: text(record.plateDiameterSource),
+      image_file_id: text(record.imageFileId),
       meal_session_finished_at: iso(record.mealSessionFinishedAt), discarded_at: iso(record.discardedAt),
       model_name: text(record.modelName), prompt_version: text(record.promptVersion), snapshot_available: Number(hasSnapshot),
       algorithm_version: text(snapshot?.algorithmVersion), snapshot_at: iso(snapshot?.generatedAt),

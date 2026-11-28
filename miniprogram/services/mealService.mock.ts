@@ -94,7 +94,10 @@ export function createMealAnalysis(
     imageFileId: params.imageFileId,
     imageUrl: params.imageUrl,
     participantCode: params.participantCode,
-    plateDiameterCm: params.plateDiameterCm,
+    // 二维码卡片模式：mock 假装量出了 24cm 的盘子。
+    plateDiameterCm: params.scaleMode === 'qr-card' ? 24 : params.plateDiameterCm,
+    scaleMode: params.scaleMode || 'plate',
+    plateDiameterSource: params.scaleMode === 'qr-card' ? 'qr-card' : 'user',
     status: 'pending',
     evaluationStatus: 'pending',
     excludedIngredients: [],

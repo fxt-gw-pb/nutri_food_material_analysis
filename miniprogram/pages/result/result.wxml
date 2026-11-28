@@ -29,7 +29,7 @@
     <view wx:if="{{totalWeightText}}" class="summary-line">
       <text class="summary-label muted">总重</text>
       <text class="summary-value">{{totalWeightText}}</text>
-      <text class="muted plate-note">按 {{plateDiameterCm}}cm 餐盘估算</text>
+      <text class="muted plate-note">{{plateNote}}</text>
     </view>
   </view>
 

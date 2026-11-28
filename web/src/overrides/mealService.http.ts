@@ -47,6 +47,7 @@ export function createMealAnalysis(params: CreateMealAnalysisParams): Promise<{ 
   return apiRequest('POST', '/api/meals', {
     imageFileId: params.imageFileId,
     plateDiameterCm: params.plateDiameterCm,
+    scaleMode: params.scaleMode || 'plate',
     participantCode: params.participantCode,
     mealSessionId: params.mealSessionId || '',
   });

@@ -8,6 +8,12 @@ const LEGACY_MODEL = 'qwen-vl-max';
 const LEGACY_PROMPT_VERSION = 'qwen-dish-ingredients-weight-v5';
 const PROMPT_VERSION = 'qwen-dish-visible-food-weight-v8';
 const ADAPTER_VERSION = '2026-09-28-vision-proxy-calibration-v1';
+// 二维码卡片参照模式（2026-11-28）：照片里放一张边长 4 cm 的打印卡片，由模型对照卡片量出餐盘口径。
+// 只在用户选了「二维码卡片」时使用；选餐盘直径时提示词与 v8 逐字相同，旧口径不受影响。
+const REFERENCE_CARD_CM = 4;
+const QR_PROMPT_VERSION = 'qwen-dish-visible-food-weight-v8-qrcard-v1';
+const MIN_PLATE_CM = 10;
+const MAX_PLATE_CM = 60;
 function configuredModel() {
   // 按用户认可的旧算法快照完成代理校准；版本与系数在 quantityCalibration.js 固定。
   const model = process.env.QWEN_MODEL || TARGET_MODEL;
@@ -17,6 +23,9 @@ function configuredModel() {
 // ---- 千问调用与解析 ----------------------------------------------------------
 async function callQwen(imageUrl, plateDiameterCm, options = {}) {
   const model = options.model || configuredModel();
+  // 二维码卡片模式只支持固定快照；回退模型从未用这个提示词验证过。
+  const cardCm = options.scale && options.scale.mode === 'qr-card' ? Number(options.scale.cardCm) || REFERENCE_CARD_CM : 0;
+  if (cardCm && model !== TARGET_MODEL) throw new Error('二维码卡片参照模式只支持固定快照模型');
   if (![TARGET_MODEL, LEGACY_MODEL].includes(model)) throw new Error('不支持的模型版本');
   const apiKey = process.env.DASHSCOPE_API_KEY;
   if (!apiKey) throw new Error('未配置 DASHSCOPE_API_KEY 环境变量');
@@ -30,7 +39,7 @@ async function callQwen(imageUrl, plateDiameterCm, options = {}) {
         role: 'user',
         content: [
           { type: 'image_url', image_url: { url: imageUrl } },
-          { type: 'text', text: model === LEGACY_MODEL ? legacyUserPrompt(plateDiameterCm) : userPrompt(plateDiameterCm) },
+          { type: 'text', text: model === LEGACY_MODEL ? legacyUserPrompt(plateDiameterCm) : cardCm ? referenceCardPrompt(cardCm) : userPrompt(plateDiameterCm) },
         ],
       },
     ],
@@ -42,6 +51,7 @@ async function callQwen(imageUrl, plateDiameterCm, options = {}) {
     const remainingMs = 50000 - (Date.now() - startedAt);
     if (remainingMs <= 0) throw new Error('调用千问接口超过 50s 总时限');
     let outputInvalid = false;
+    let scaleEstimate = null;
     try {
       const data = await (options.postJson || postJson)(DASHSCOPE_URL, body, {
         Authorization: `Bearer ${apiKey}`,
@@ -54,7 +64,9 @@ async function callQwen(imageUrl, plateDiameterCm, options = {}) {
       const repairs = [];
       let dish;
       try {
-        dish = parseDish(choice.message && choice.message.content, { strict: model !== LEGACY_MODEL, repairs });
+        const parsed = parseResponse(choice.message && choice.message.content, { strict: model !== LEGACY_MODEL, repairs, cardCm });
+        dish = parsed.dish;
+        scaleEstimate = parsed.scale;
         if (model !== LEGACY_MODEL) validateDish(dish);
       } catch (error) { outputInvalid = true; throw error; }
       if (dish === null && model === TARGET_MODEL && attempt === 0 && Date.now() - startedAt < 40000) {
@@ -65,7 +77,8 @@ async function callQwen(imageUrl, plateDiameterCm, options = {}) {
       const calibrated = model === TARGET_MODEL && options.calibrate !== false;
       if (calibrated) dish = applyQuantityCalibration(rawDish);
       return { dish, modelName: model, resolvedModel: data.model || model,
-        promptVersion: model === LEGACY_MODEL ? LEGACY_PROMPT_VERSION : PROMPT_VERSION, adapterVersion: ADAPTER_VERSION,
+        promptVersion: model === LEGACY_MODEL ? LEGACY_PROMPT_VERSION : cardCm ? QR_PROMPT_VERSION : PROMPT_VERSION, adapterVersion: ADAPTER_VERSION,
+        ...(cardCm ? { scaleEstimate } : {}),
         elapsedMs: Date.now() - startedAt, requestId: data.id || '', usage: data.usage || null,
         attempts: attempt + 1, outputRepairs: repairs,
         inferenceConfig: model === TARGET_MODEL ? { thinking: true, thinkingBudget: 512, temperature: 0 } : { legacyDefaults: true },
@@ -204,6 +217,43 @@ function userPrompt(plateDiameterCm) {
     ].join('\n');
 }
 
+/**
+ * 二维码卡片模式的提示词：在 v8 基础上把「已知盘径」换成「对照 4 cm 卡片量盘径」，
+ * 并要求额外输出 plateDiameterCm 与 referenceCardVisible。其余约束逐字保留。
+ */
+function referenceCardPrompt(cardCm = REFERENCE_CARD_CM) {
+  const placeholder = 26;
+  const base = userPrompt(placeholder);
+  const swap = (text, from, to) => {
+    if (!text.includes(from)) throw new Error(`提示词模板已变化，找不到：${from}`);
+    return text.replace(from, to);
+  };
+  let text = swap(base, `照片里这个餐盘的实际直径是 ${placeholder} 厘米，请以它作为唯一的尺寸基准。`,
+    `照片里餐盘旁边放着一张边长 ${cardCm} 厘米的正方形二维码卡片（黑色方框，中间是圆形小程序码），请以这张卡片作为唯一的尺寸基准，先量出盛菜的餐盘（或碗）口径的实际直径。`);
+  text = swap(text, `以直径 ${placeholder}cm 的盘面为分母`, '以餐盘（或碗）口径围成的盘面为分母');
+  text = swap(text, '"weightConfidence":"high|medium|low",', '"weightConfidence":"high|medium|low","plateDiameterCm":number,"referenceCardVisible":true|false,');
+  return `${text}\n${[
+    `- plateDiameterCm：对照边长 ${cardCm} 厘米的二维码卡片，估计盛菜餐盘（或碗）口径的实际直径，单位厘米，保留一位小数；注意卡片与餐盘的远近和拍摄角度；`,
+    `- referenceCardVisible：能看清这张卡片时为 true；看不到卡片时为 false，此时仍按餐具的常见尺寸给出 plateDiameterCm；`,
+    '- 二维码卡片只是尺寸参照物，不是食物：不要列入食材，也不要计入任何面积比例。',
+  ].join('\n')}`;
+}
+
+/** 解析模型输出；二维码卡片模式额外取出模型量出的餐盘口径。 */
+function parseResponse(content, { strict = true, repairs = [], cardCm = 0 } = {}) {
+  const dish = parseDish(content, { strict, repairs });
+  if (!cardCm) return { dish, scale: null };
+  const json = repairFieldNames(extractJson(content), []);
+  const raw = (json && (json.dish || (Array.isArray(json.dishes) ? json.dishes[0] : null))) || json || {};
+  const diameter = Number(raw.plateDiameterCm);
+  if (!Number.isFinite(diameter) || diameter < MIN_PLATE_CM || diameter > MAX_PLATE_CM) {
+    if (dish === null) return { dish, scale: null };
+    throw new Error('模型没有给出有效的餐盘口径');
+  }
+  return { dish, scale: { mode: 'qr-card', referenceCardCm: cardCm, plateDiameterCm: Math.round(diameter * 10) / 10,
+    referenceCardVisible: raw.referenceCardVisible === true } };
+}
+
 function parseDish(content, { strict = true, repairs = [] } = {}) {
   if (!content) throw new Error('千问返回空内容');
   const json = repairFieldNames(extractJson(content), repairs);
@@ -223,7 +273,7 @@ function parseDish(content, { strict = true, repairs = [] } = {}) {
 function repairFieldNames(value, repairs) {
   if (Array.isArray(value)) return value.map(v => repairFieldNames(v, repairs));
   if (!value || typeof value !== 'object') return value;
-  const known = ['dish', 'dishes', 'dishName', 'cookingMethod', 'recognitionConfidence', 'weightConfidence', 'ingredients', 'name', 'areaRatio', 'heightCm', 'estimatedG'];
+  const known = ['dish', 'dishes', 'dishName', 'cookingMethod', 'recognitionConfidence', 'weightConfidence', 'ingredients', 'name', 'areaRatio', 'heightCm', 'estimatedG', 'plateDiameterCm', 'referenceCardVisible'];
   const result = Object.create(null);
   for (const key of Object.keys(value)) {
     const compact = key.replace(/\s/g, '');
@@ -324,5 +374,6 @@ function validateDish(dish) {
   if (area > 1.01) throw new Error('食材盘面占比合计超过 100%，请重新识别');
 }
 module.exports = { TARGET_MODEL, LEGACY_MODEL, PROMPT_VERSION, LEGACY_PROMPT_VERSION, ADAPTER_VERSION,
+  QR_PROMPT_VERSION, REFERENCE_CARD_CM, referenceCardPrompt, parseResponse,
   configuredModel, callQwen, postJson, parseDish, normalizeDish, validateDish,
   SYSTEM_PROMPT, userPrompt, LEGACY_SYSTEM_PROMPT, legacyUserPrompt };

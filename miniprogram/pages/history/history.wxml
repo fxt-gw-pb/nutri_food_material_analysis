@@ -2,16 +2,22 @@
   <view class="page-heading reveal"><view class="eyebrow">每一餐，都有记录</view><view class="heading-row"><view class="title-lg">饮食记录</view><button class="text-button" bindtap="goUpload">＋ 拍一道菜</button></view><view class="page-description">按参与者找到这道菜，饭后补充吃了多少。</view></view>
   <view class="search-box"><image class="ui-icon icon-sm" src="/assets/icons/search.svg" /><input class="search-input" value="{{keyword}}" bindinput="onSearchInput" placeholder="搜索编号、菜名或食材" placeholder-class="input-placeholder" aria-label="搜索最近的饮食记录" /><button wx:if="{{keyword}}" class="clear-search" bindtap="clearSearch" aria-label="清空搜索">×</button></view>
   <view class="filters"><button class="filter {{filter === 'all' ? 'filter-active' : ''}}" data-filter="all" bindtap="setFilter">全部 <text>{{items.length}}</text></button><button class="filter {{filter === 'pending' ? 'filter-active' : ''}}" data-filter="pending" bindtap="setFilter">待评估 <text>{{pendingCount}}</text></button><button class="filter {{filter === 'evaluated' ? 'filter-active' : ''}}" data-filter="evaluated" bindtap="setFilter">已评估 <text>{{evaluatedCount}}</text></button></view>
-  <view class="list-caption">展示最近 30 条识别记录，搜索与筛选在这些记录中进行</view>
+  <view class="list-caption">展示最近 60 道菜，按日期和餐次分组；搜索与筛选在这些记录中进行</view>
   <view wx:if="{{!loaded}}" class="loading-list" aria-label="正在加载饮食记录"><view wx:for="{{[1,2,3]}}" wx:key="*this" class="card skeleton-card"><view class="skeleton skeleton-title"></view><view class="skeleton skeleton-line"></view><view class="skeleton skeleton-line skeleton-short"></view></view></view>
   <view wx:if="{{error}}" class="card state-card"><view class="state-title">记录暂时没加载出来</view><view class="state-copy">{{error}}</view><button class="btn btn-secondary" loading="{{loading}}" disabled="{{loading}}" bindtap="loadHistory">重新加载</button></view>
   <view wx:if="{{loaded && !error && items.length === 0}}" class="card state-card reveal"><view class="state-icon"><image class="ui-icon" src="/assets/icons/plate.svg" /></view><view class="state-title">从第一道菜开始</view><view class="state-copy">拍下今天的菜，留下第一份饮食记录。</view><button class="btn btn-primary" hover-class="btn-hover" bindtap="goUpload">去拍一张</button></view>
   <view wx:if="{{loaded && !error && items.length > 0 && visibleItems.length === 0}}" class="card state-card"><view class="state-icon"><image class="ui-icon" src="/assets/icons/search.svg" /></view><view class="state-title">没有找到对应记录</view><view class="state-copy">试试其他编号或菜名，或切换为全部记录。</view><button class="btn btn-secondary" bindtap="resetFilters">清除筛选</button></view>
-  <button wx:for="{{visibleItems}}" wx:key="analysisId" class="card record record-{{item.evaluationClass}}" hover-class="surface-hover" data-id="{{item.analysisId}}" bindtap="goDetail" bindlongpress="confirmDelete">
-    <view class="record-identity"><text class="participant-label">参与者编号（ID）</text><text class="participant-code">{{item.participantCode || '未记录编号'}}</text></view>
-    <view class="record-main"><image wx:if="{{item.imageUrl}}" class="record-img" src="{{item.imageUrl}}" mode="aspectFill" /><view wx:else class="record-img thumb-placeholder"><image class="ui-icon" src="/assets/icons/plate.svg" /></view><view class="record-body"><view class="record-summary">{{item.dishName}}</view><view class="record-date">{{item.dateText}} · {{item.mealTypeText}}</view><view class="record-ingredients">{{item.totalCount ? item.ingredientText : '未识别出食材'}}</view></view><text class="record-chevron">›</text></view>
-    <view class="record-footer"><text class="record-texture">{{item.textureSummary}}<text wx:if="{{item.totalG}}"> · 约 {{item.totalG}} g</text></text><text class="evaluation-status evaluation-status-{{item.evaluationClass}}">{{item.evaluationClass === 'evaluated' ? '✓ 已评估' : '待评估'}}</text></view>
-    <view class="evaluation-status-meta">{{item.evaluationMeta}}</view>
-  </button>
-  <view wx:if="{{loaded && items.length > 0}}" class="muted list-tip">长按记录可删除 · 下拉刷新</view>
+  <view wx:for="{{days}}" wx:key="dateKey" wx:for-item="day" class="day-section">
+    <view class="day-head"><text class="day-title">{{day.dateText}}</text><text wx:if="{{day.label}}" class="tag day-tag">{{day.label}}</text></view>
+    <button wx:for="{{day.meals}}" wx:key="key" wx:for-item="meal" class="card meal-group meal-group-{{meal.statusClass}}" hover-class="surface-hover" data-key="{{meal.key}}" bindtap="goMeal" aria-label="{{day.dateText + meal.mealTypeText + '，' + meal.dishCount + '道菜，' + meal.statusText}}">
+      <view class="meal-group-top"><view class="meal-group-title">{{meal.mealTypeText}}</view><text class="evaluation-status evaluation-status-{{meal.statusClass}}">{{meal.statusText}}</text></view>
+      <view class="meal-group-main">
+        <view class="meal-group-thumbs"><image wx:for="{{meal.thumbs}}" wx:key="*this" wx:for-item="thumb" class="meal-group-thumb" src="{{thumb}}" mode="aspectFill" /><view wx:if="{{meal.thumbs.length === 0}}" class="meal-group-thumb thumb-placeholder"><image class="ui-icon" src="/assets/icons/plate.svg" /></view></view>
+        <text class="record-chevron">›</text>
+      </view>
+      <view class="meal-group-dishes">{{meal.dishNames}}</view>
+      <view class="meal-group-meta"><text>参与者 {{meal.participantCode || '未记录编号'}}</text><text>{{meal.dishCount}} 道菜</text></view>
+    </button>
+  </view>
+  <view wx:if="{{loaded && items.length > 0}}" class="muted list-tip">点进一餐，逐道菜查看和评估 · 下拉刷新</view>
 </view>

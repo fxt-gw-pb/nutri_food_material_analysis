@@ -49,6 +49,9 @@ interface AnyDoc {
   discardedAt?: number;
   /** 拍照时选的餐盘直径（cm），估重的尺度基准 */
   plateDiameterCm?: number;
+  scaleMode?: MealAnalysis['scaleMode'];
+  plateDiameterSource?: MealAnalysis['plateDiameterSource'];
+  referenceCardVisible?: boolean;
   status: AnalysisStatus;
   mealType?: MealType;
   modelName?: string;
@@ -93,6 +96,9 @@ function docToMealAnalysis(doc: AnyDoc): MealAnalysis {
     consumption: doc.consumption,
     auditSnapshot: doc.auditSnapshot,
     plateDiameterCm: doc.plateDiameterCm,
+    scaleMode: doc.scaleMode,
+    plateDiameterSource: doc.plateDiameterSource,
+    referenceCardVisible: doc.referenceCardVisible,
     errorStage: doc.errorStage,
     errorMessage: doc.errorMessage,
     createdAt: doc.createdAt,
@@ -145,6 +151,7 @@ export function createMealAnalysis(
         imageFileId: params.imageFileId,
         imageUrl: params.imageUrl,
         plateDiameterCm: params.plateDiameterCm,
+        scaleMode: params.scaleMode || 'plate',
         participantCode: params.participantCode,
         mealSessionId: params.mealSessionId || '',
       },
@@ -223,15 +230,19 @@ export function saveMealType(analysisId: string, mealType: MealType): Promise<vo
     .then(() => undefined);
 }
 
-export function getMealHistory(): Promise<MealHistoryItem[]> {
-  return db()
-    .collection(COLLECTION)
-    .where({ status: 'completed' })
-    .orderBy('createdAt', 'desc')
-    // 每条记录都要在本地重跑一次质构匹配，不设上限会让历史页越用越卡。
-    .limit(30)
-    .get()
-    .then((res) => (res.data as AnyDoc[]).map(docToHistoryItem));
+/** 历史列表最多取多少道菜。小程序端单次查询上限 20 条，分页取；每条都要本地重跑匹配，不设上限会越用越卡。 */
+const HISTORY_LIMIT = 60;
+
+export async function getMealHistory(): Promise<MealHistoryItem[]> {
+  const out: AnyDoc[] = [];
+  for (let skip = 0; skip < HISTORY_LIMIT; skip += 20) {
+    const res = await db().collection(COLLECTION).where({ status: 'completed' })
+      .orderBy('createdAt', 'desc').skip(skip).limit(20).get();
+    const page = res.data as AnyDoc[];
+    out.push(...page);
+    if (page.length < 20) break;
+  }
+  return out.map(docToHistoryItem);
 }
 
 export function deleteMealRecord(analysisId: string): Promise<void> {

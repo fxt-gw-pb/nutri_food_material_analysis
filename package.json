@@ -1,6 +1,6 @@
 {
   "name": "nutri-food-material-analysis",
-  "version": "2026.11.27",
+  "version": "2026.11.28",
   "description": "食材识别、估重、饭后摄入评估与质构、营养汇总（微信小程序 + 自建网页版）",
   "private": true,
   "scripts": {

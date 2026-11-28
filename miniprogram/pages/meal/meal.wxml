@@ -1,0 +1,44 @@
+<view class="container with-dock meal-group-page">
+  <view class="page-heading reveal"><view class="eyebrow">{{dateText}}</view><view class="title-lg">{{title}}</view><view class="page-description">参与者 {{participantCode || '未记录编号'}} · 菜名由 AI 识别，点开每道菜可核对食材</view></view>
+  <view wx:if="{{!loaded}}" class="card state-card"><view class="loading-mark"></view><view class="state-title">正在读取这一餐</view></view>
+  <view wx:elif="{{error}}" class="card state-card"><view class="state-title">这一餐暂时没加载出来</view><view class="state-copy">{{error}}</view><button wx:if="{{dateKey}}" class="btn btn-secondary" loading="{{loading}}" disabled="{{loading}}" bindtap="load">重新加载</button></view>
+  <view wx:elif="{{dishes.length === 0}}" class="card state-card"><view class="state-icon"><image class="ui-icon" src="/assets/icons/plate.svg" /></view><view class="state-title">这一餐没有菜品记录</view><view class="state-copy">记录可能已删除，或改了餐次。</view></view>
+  <block wx:else>
+    <view class="meal-progress"><text>共 {{dishes.length}} 道菜</text><text class="muted">已评估 {{evaluatedCount}} / {{dishes.length}}</text></view>
+    <view wx:if="{{unfinishedCount}}" class="card finish-card">
+      <view class="finish-title">这顿饭还没点「拍完了」</view>
+      <view class="finish-copy">菜都拍完了，就点下面的按钮，然后逐道填写吃了多少。</view>
+    </view>
+    <view wx:for="{{dishes}}" wx:key="analysisId" wx:for-item="dish" class="card dish-card dish-card-{{dish.evaluated ? 'evaluated' : 'pending'}}">
+      <button class="dish-main" hover-class="surface-hover" data-id="{{dish.analysisId}}" bindtap="goDetail" bindlongpress="confirmDelete" aria-label="{{'查看' + dish.dishName + '的识别记录'}}">
+        <image wx:if="{{dish.imageUrl}}" class="dish-img" src="{{dish.imageUrl}}" mode="aspectFill" />
+        <view wx:else class="dish-img thumb-placeholder"><image class="ui-icon" src="/assets/icons/plate.svg" /></view>
+        <view class="dish-body">
+          <view class="dish-name">{{dish.dishName}}</view>
+          <view class="dish-meta">{{dish.timeText}} · {{dish.ingredientText}}</view>
+          <view wx:if="{{dish.summaryText}}" class="dish-summary">{{dish.summaryText}}</view>
+        </view>
+        <text class="record-chevron">›</text>
+      </button>
+      <view class="dish-actions">
+        <text class="evaluation-status evaluation-status-{{dish.evaluated ? 'evaluated' : 'pending'}}">{{dish.evaluated ? '✓ 已评估 · 吃下 ' + dish.consumedG + ' g' : '待评估'}}</text>
+        <button wx:if="{{dish.sessionFinished}}" class="btn {{dish.evaluated ? 'btn-secondary' : 'btn-primary'}} btn-sm dish-evaluate" hover-class="btn-hover" data-id="{{dish.analysisId}}" disabled="{{busy}}" bindtap="goEvaluate">{{dish.evaluated ? '修改评估' : '去评估'}}</button>
+      </view>
+    </view>
+    <view class="muted list-tip">点菜品看识别详情 · 长按可删除 · 下拉刷新</view>
+  </block>
+  <view wx:if="{{loaded && !error && dishes.length > 0}}" class="action-dock">
+    <block wx:if="{{unfinishedCount}}">
+      <view class="dock-hint">结束拍照后才能评估</view>
+      <button class="btn btn-primary" hover-class="btn-hover" loading="{{busy}}" disabled="{{busy}}" bindtap="finishMeal">拍完了，开始评估</button>
+    </block>
+    <block wx:elif="{{pendingCount}}">
+      <view class="dock-hint">还有 {{pendingCount}} 道菜没评估</view>
+      <button class="btn btn-primary" hover-class="btn-hover" disabled="{{busy}}" bindtap="evaluateNext">评估下一道</button>
+    </block>
+    <block wx:else>
+      <view class="dock-hint">这一餐都评估完了</view>
+      <button wx:if="{{participantCode}}" class="btn btn-primary" hover-class="btn-hover" bindtap="goDaily">看这一天的汇总</button>
+    </block>
+  </view>
+</view>

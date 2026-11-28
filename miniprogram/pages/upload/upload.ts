@@ -9,20 +9,25 @@ import {
 import { safeGet, safeSet } from '../../utils/storage';
 import { getUserProfile, saveUserProfile, UserProfile } from '../../services/userProfile';
 import { ensureMealSession, getActiveMealSession } from '../../utils/mealSession';
+import { ScaleMode } from '../../types/index';
 
 // 上次选过的盘径记在本地：同一个人多半天天用同一个盘子，不该每次都重选。
 const LAST_DIAMETER_KEY = 'last_plate_diameter';
+// 上次用的尺寸参照方式。默认二维码卡片：卡片随问卷发给老人，拍照时放在盘子旁边即可，不用选盘径。
+const LAST_SCALE_MODE_KEY = 'last_scale_mode';
 
 Page({
   data: {
     mealSessionId: '',
     participantCode: '',
     imageUrl: '',
+    scaleMode: 'qr-card' as ScaleMode,
     diameterOptions: PLATE_DIAMETER_OPTIONS,
     selectedDiameter: DEFAULT_PLATE_DIAMETER,
     useCustom: false,
     customDiameter: '',
     tips: [
+      '二维码卡片平放在餐盘旁边，整张入镜、不被遮挡',
       '餐盘完整入镜，且不要被裁掉边缘',
       '尽量俯拍，光线充足',
       '避免手和餐具遮挡',
@@ -39,11 +44,13 @@ Page({
     const profile = getUserProfile();
     // 上次用的是自定义尺寸（不在预设里）时，直接把自定义框填好并激活。
     const preset = PLATE_DIAMETER_OPTIONS.indexOf(last) >= 0;
+    const savedMode = safeGet<string>(LAST_SCALE_MODE_KEY, 'qr-card');
     const mealSessionId = this.sessionFromRoute
       ? ensureMealSession(query.mealSessionId)
       : (getActiveMealSession() || '');
     this.setData({
       mealSessionId,
+      scaleMode: savedMode === 'plate' ? 'plate' : 'qr-card',
       selectedDiameter: last,
       useCustom: !preset,
       customDiameter: preset ? '' : String(last),
@@ -72,6 +79,13 @@ Page({
       wx.showToast({ title: message, icon: 'none' });
       return null;
     }
+  },
+
+  /** 尺寸参照：二维码卡片 / 餐盘直径 */
+  selectScaleMode(e: WechatMiniprogram.TouchEvent) {
+    const mode = e.currentTarget.dataset.mode;
+    if (mode !== 'qr-card' && mode !== 'plate') return;
+    this.setData({ scaleMode: mode });
   },
 
   // 选择预设直径
@@ -137,15 +151,17 @@ Page({
       wx.showToast({ title: '请先选择菜品照片', icon: 'none' });
       return;
     }
-    const plateDiameterCm = this.resolveDiameter();
-    if (!plateDiameterCm) {
+    const qrCard = this.data.scaleMode === 'qr-card';
+    const plateDiameterCm = qrCard ? 0 : this.resolveDiameter();
+    if (!qrCard && !plateDiameterCm) {
       wx.showToast({
         title: `请输入 ${MIN_PLATE_DIAMETER}–${MAX_PLATE_DIAMETER} cm 之间的盘径`,
         icon: 'none',
       });
       return;
     }
-    safeSet(LAST_DIAMETER_KEY, plateDiameterCm);
+    safeSet(LAST_SCALE_MODE_KEY, this.data.scaleMode);
+    if (!qrCard) safeSet(LAST_DIAMETER_KEY, plateDiameterCm);
 
     this.setData({ submitting: true });
     try {
@@ -154,7 +170,8 @@ Page({
       const createParams = {
         imageUrl,
         imageFileId: fileId,
-        plateDiameterCm,
+        // 二维码卡片模式不传盘径，识别时对照卡片量出。
+        ...(qrCard ? { scaleMode: 'qr-card' as ScaleMode } : { plateDiameterCm, scaleMode: 'plate' as ScaleMode }),
         participantCode: profile.participantCode,
         ...(this.sessionFromRoute ? { mealSessionId: this.data.mealSessionId || ensureMealSession() } : {}),
       };

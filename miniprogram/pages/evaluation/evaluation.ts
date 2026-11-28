@@ -7,7 +7,17 @@ import { confirmRetake } from '../../utils/retakeNavigation';
 import { chinaDateKey, dishIntakeItems, summarizeIntake } from '../../utils/intake';
 import { SummaryView, toSummaryView } from '../../utils/intakeView';
 
-interface EvaluationRow { name: string; grams: number; percent: number; confirmed: boolean; consumedG: number }
+/** 滑条只到 100%（不识字的老人拖到头就是吃完）；超过一份用预设按钮或输入框，最多 500%。 */
+const SLIDER_MAX = 100;
+const MAX_PERCENT = 500;
+
+interface EvaluationRow {
+  name: string; grams: number; percent: number; confirmed: boolean; consumedG: number;
+  /** 滑条位置：比例超过 100% 时停在最右 */
+  sliderValue: number;
+  /** 输入框里显示的数字 */
+  inputText: string;
+}
 
 Page({
   data: {
@@ -23,8 +33,11 @@ Page({
   percentages: {} as Record<string, number>,
   saveQueue: null as Promise<void> | null,
   revision: 0,
+  /** 从「这一餐」页进来：评估完回到那一页，接着评估同一餐的下一道菜 */
+  fromMeal: false,
   onLoad(query: Record<string, string | undefined>) {
     this.saveQueue = Promise.resolve();
+    this.fromMeal = query.from === 'meal';
     this.analysisId = query.analysisId || '';
     void this.loadMeal();
   },
@@ -74,8 +87,10 @@ Page({
     const rows = resolved.ingredients.map((i): EvaluationRow => {
       const p = this.percentages[i.name];
       const confirmed = typeof p === 'number' && isFinite(p) && p >= 0 && p <= 500;
-      return { name: i.name, grams: i.grams, percent: confirmed ? p : 100, confirmed,
-        consumedG: confirmed ? Math.round(i.grams * p) / 100 : 0 };
+      const percent = confirmed ? p : 100;
+      return { name: i.name, grams: i.grams, percent, confirmed,
+        consumedG: confirmed ? Math.round(i.grams * p) / 100 : 0,
+        sliderValue: Math.min(percent, SLIDER_MAX), inputText: confirmed ? String(p) : '' };
     });
     const grams: Record<string, number> = {};
     rows.forEach((r) => { if (r.confirmed) grams[r.name] = r.consumedG; });
@@ -89,12 +104,26 @@ Page({
   onSliderChange(e: WechatMiniprogram.CustomEvent<{ value: number }>) {
     this.setPercent(e.currentTarget.dataset.name as string, e.detail.value);
   },
+  /** 输入框：点键盘上的完成或离开输入框时生效，只收 0–500 的整数 */
+  applyManual(e: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    const name = e.currentTarget.dataset.name as string;
+    const raw = String((e.detail && e.detail.value) ?? '').trim();
+    const row = this.data.rows.find((r) => r.name === name);
+    if (!raw || !row || this.data.busy || !this.data.loaded) return;
+    const value = Number(raw);
+    if (!/^\d{1,3}$/.test(raw) || value > MAX_PERCENT) {
+      wx.showToast({ title: `请输入 0 到 ${MAX_PERCENT} 之间的整数`, icon: 'none' });
+      return;
+    }
+    if (row.confirmed && row.percent === value) return;
+    this.setPercent(name, value);
+  },
   choosePercent(e: WechatMiniprogram.TouchEvent) {
     this.setPercent(e.currentTarget.dataset.name as string, Number(e.currentTarget.dataset.value));
   },
   setPercent(name: string, percent: number) {
     if (this.data.busy || !this.data.loaded || !this.data.rows.some((r) => r.name === name)) return;
-    if (!isFinite(percent) || percent < 0 || percent > 500) return;
+    if (!isFinite(percent) || percent < 0 || percent > MAX_PERCENT) return;
     this.percentages = { ...this.percentages, [name]: Math.round(percent) };
     this.refreshRows();
     // 已完成记录可修改，点击完成时整份提交；草稿不能把已完成状态改回待评。
@@ -171,7 +200,10 @@ Page({
       wx.showToast({ title: '评估已保存', icon: 'success' });
       // 评估完直接看这顿饭和这一天的质构系数与营养；旧记录没有编号时回首页。
       const meal = this.meal;
-      if (meal && meal.participantCode) {
+      if (this.fromMeal) {
+        // 回到「这一餐」，接着评估下一道；那一页 onShow 会刷新状态。
+        wx.navigateBack({ delta: 1 });
+      } else if (meal && meal.participantCode) {
         const query = `participantCode=${encodeURIComponent(meal.participantCode)}&date=${chinaDateKey(meal.createdAt)}&analysisId=${encodeURIComponent(this.analysisId)}`;
         wx.reLaunch({ url: `/pages/daily/daily?${query}` });
       } else {

@@ -29,3 +29,17 @@ button.record-evaluated { border-left-color: #689c76; }
 .list-tip { text-align: center; margin-top: 16rpx; }
 .skeleton-card { min-height: 230rpx; }
 @media (prefers-reduced-motion: reduce) { button.filter { transition: none; } }
+
+.day-section { margin-bottom: 12rpx; }
+.day-head { display: flex; align-items: center; gap: 14rpx; margin: 28rpx 4rpx 16rpx; }
+.day-title { font-size: 32rpx; font-weight: 700; }
+.day-tag { font-size: 23rpx; }
+button.meal-group { display: block; width: 100%; max-width: none; text-align: left; color: var(--text); line-height: 1.6; font-weight: 400; padding: 26rpx; border: 1rpx solid var(--border); border-left: 6rpx solid #c4a05c; }
+button.meal-group-evaluated { border-left-color: #689c76; }
+.meal-group-top { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.meal-group-title { font-size: 36rpx; font-weight: 700; }
+.meal-group-main { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 18rpx; }
+.meal-group-thumbs { display: flex; gap: 12rpx; }
+.meal-group-thumb { width: 120rpx; height: 120rpx; border-radius: 18rpx; flex-shrink: 0; }
+.meal-group-dishes { margin-top: 16rpx; font-size: 29rpx; font-weight: 500; word-break: break-all; }
+.meal-group-meta { display: flex; justify-content: space-between; gap: 16rpx; margin-top: 8rpx; font-size: 25rpx; color: var(--sub); }

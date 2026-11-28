@@ -10,22 +10,30 @@ import { MOCK_DISHES } from '../../miniprogram/mock/dishes';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import vision = require('../../cloudfunctions/analyzeMeal/vision.js');
 
-export const { configuredModel, PROMPT_VERSION, LEGACY_PROMPT_VERSION, ADAPTER_VERSION, TARGET_MODEL } = vision;
+export const { configuredModel, PROMPT_VERSION, LEGACY_PROMPT_VERSION, ADAPTER_VERSION, TARGET_MODEL, QR_PROMPT_VERSION, REFERENCE_CARD_CM } = vision;
 
 export interface VisionOptions { mock: boolean; concurrency: number }
-type Call = (imageUrl: string, plateDiameterCm: number) => Promise<Record<string, unknown> & { dish: unknown }>;
+interface ScaleOption { scale?: { mode: 'qr-card'; cardCm: number } }
+type Call = (imageUrl: string, plateDiameterCm: number, options?: ScaleOption) => Promise<Record<string, unknown> & { dish: unknown }>;
+interface ScaleEstimate { plateDiameterCm: number; referenceCardVisible: boolean }
 
-export function modelFields(mock: boolean): { modelName: string; promptVersion: string; adapterVersion: string } {
-  if (mock) return { modelName: 'web-mock', promptVersion: 'mock-v0', adapterVersion: ADAPTER_VERSION };
+/** 二维码卡片模式只在固定快照下可用（与云函数一致）。 */
+export function qrCardAvailable(mock: boolean): boolean {
+  return mock || configuredModel() === TARGET_MODEL;
+}
+
+export function modelFields(mock: boolean, qrCard = false): { modelName: string; promptVersion: string; adapterVersion: string } {
+  if (mock) return { modelName: 'web-mock', promptVersion: qrCard ? 'mock-qrcard-v0' : 'mock-v0', adapterVersion: ADAPTER_VERSION };
   const model = configuredModel();
-  return { modelName: model, promptVersion: model === TARGET_MODEL ? PROMPT_VERSION : LEGACY_PROMPT_VERSION, adapterVersion: ADAPTER_VERSION };
+  return { modelName: model, promptVersion: model === TARGET_MODEL ? (qrCard ? QR_PROMPT_VERSION : PROMPT_VERSION) : LEGACY_PROMPT_VERSION, adapterVersion: ADAPTER_VERSION };
 }
 
 let mockIndex = 0;
-const mockCall: Call = async () => {
+const mockCall: Call = async (_url, _d, options) => {
   await new Promise((r) => setTimeout(r, Number(process.env.VISION_MOCK_DELAY_MS ?? 2500)));
   const dish = JSON.parse(JSON.stringify(MOCK_DISHES[mockIndex++ % MOCK_DISHES.length]));
-  return { dish, modelName: 'web-mock', resolvedModel: 'web-mock', promptVersion: 'mock-v0', adapterVersion: ADAPTER_VERSION, mock: true };
+  const scaleEstimate = options && options.scale ? { mode: 'qr-card', referenceCardCm: options.scale.cardCm, plateDiameterCm: 24, referenceCardVisible: true } : undefined;
+  return { dish, modelName: 'web-mock', resolvedModel: 'web-mock', promptVersion: 'mock-v0', adapterVersion: ADAPTER_VERSION, mock: true, ...(scaleEstimate ? { scaleEstimate } : {}) };
 };
 
 export class VisionQueue {
@@ -34,8 +42,8 @@ export class VisionQueue {
   private readonly call: Call;
 
   constructor(private store: Store, private images: Images, private options: VisionOptions, call?: Call) {
-    this.call = call || (options.mock ? mockCall : async (url, d) => {
-      const response = await vision.callQwen(url, d);
+    this.call = call || (options.mock ? mockCall : async (url, d, opts) => {
+      const response = await vision.callQwen(url, d, opts);
       if (!response) throw new Error('千问没有返回识别结果');
       return response;
     });
@@ -77,9 +85,13 @@ export class VisionQueue {
 
       stage = '调用千问识别';
       this.setStatus(id, 'recognizing');
+      const qrCard = doc.scaleMode === 'qr-card';
       const plateDiameterCm = Number(doc.plateDiameterCm) > 0 ? Number(doc.plateDiameterCm) : 26;
-      const response = await this.call(imageUrl, plateDiameterCm);
+      const response = qrCard
+        ? await this.call(imageUrl, 0, { scale: { mode: 'qr-card', cardCm: Number(doc.referenceCardCm) || REFERENCE_CARD_CM } })
+        : await this.call(imageUrl, plateDiameterCm);
       const { dish, ...modelAudit } = response;
+      const scale = qrCard ? (modelAudit.scaleEstimate as ScaleEstimate | undefined) : undefined;
 
       stage = '写回识别结果';
       this.store.updateMeal(id, (latest) => {
@@ -89,6 +101,12 @@ export class VisionQueue {
         latest.promptVersion = modelAudit.promptVersion;
         latest.adapterVersion = ADAPTER_VERSION;
         latest.modelAudit = modelAudit;
+        // 二维码卡片模式：模型对照卡片量出的盘径作为本条记录的估重尺度（与云函数一致）。
+        if (scale) {
+          latest.plateDiameterCm = scale.plateDiameterCm;
+          latest.plateDiameterSource = scale.referenceCardVisible ? 'qr-card' : 'model-guess';
+          latest.referenceCardVisible = scale.referenceCardVisible;
+        }
         latest.status = 'completed';
         latest.errorStage = '';
         latest.errorMessage = '';

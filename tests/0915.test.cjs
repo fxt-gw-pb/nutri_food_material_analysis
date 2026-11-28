@@ -10,11 +10,11 @@ let records = {}, storage = {}, failWrite = false, pageDefinition, navigation = 
 const db = {
   command: { set: (v) => ({ __replace: v }) },
   collection() {
-    let filter = {}, count = Infinity;
+    let filter = {}, count = Infinity, offset = 0;
     const query = {
-      where(value) { filter = value; return query; }, limit(value) { count = value; return query; },
+      where(value) { filter = value; return query; }, limit(value) { count = value; return query; }, skip(value) { offset = value; return query; },
       orderBy() { return query; },
-      async get() { return { data: Object.values(records).filter((r) => Object.entries(filter).every(([k,v]) => r[k] === v)).slice(0,count).map(clone) }; },
+      async get() { return { data: Object.values(records).filter((r) => Object.entries(filter).every(([k,v]) => r[k] === v)).slice(offset, offset + count).map(clone) }; },
       doc(id) { return {
         async get() { if (!records[id]) throw Error('missing'); return { data: clone(records[id]) }; },
         async update({ data }) {

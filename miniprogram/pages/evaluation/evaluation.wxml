@@ -12,7 +12,7 @@
       <image wx:if="{{imageUrl}}" class="evaluation-photo" src="{{imageUrl}}" mode="aspectFit" bindtap="previewImage" aria-label="查看这道菜拍照时的原图" />
       <view class="title-md">{{recognizedName}}</view><view class="muted meal-date">{{dateText}}</view>
       <view class="portion-guide"><view><text class="portion-number">0%</text><text>没吃</text></view><view><text class="portion-number">50%</text><text>一半</text></view><view><text class="portion-number">100%</text><text>吃完</text></view></view>
-      <view class="portion-help">添过菜可选超过 100%，最多 500%（5 倍）。</view>
+      <view class="portion-help">滑条是 0–100%；添过菜可点 200%、500% 或在输入框里填，最多 500%（5 倍）。</view>
       <button wx:if="{{!completed || rows.length === 0}}" class="text-button retake-inline" bindtap="retake" loading="{{busy}}" disabled="{{busy || !loaded}}"><image class="ui-icon icon-sm" src="/assets/icons/refresh.svg" />我要重新拍照</button>
     </view>
     <view class="evaluation-progress"><text>逐项确认</text><text class="muted">已确认 {{rows.length - remaining}} / {{rows.length}} 种</text></view>
@@ -21,9 +21,11 @@
       <view class="muted">拍照时约 {{row.grams}} g</view>
       <view class="percent-line"><text class="percent-value">{{row.confirmed ? row.percent + '%' : '待确认'}}</text><text class="confirm-status {{row.confirmed ? 'is-confirmed' : ''}}">{{row.confirmed ? '✓ 已确认' : '请点选比例或滑动'}}</text></view>
       <view class="presets"><button wx:for="{{presets}}" wx:key="*this" wx:for-item="p" class="preset {{row.confirmed && row.percent === p ? 'selected' : ''}}" data-name="{{row.name}}" data-value="{{p}}" bindtap="choosePercent" disabled="{{busy}}" aria-label="{{row.name + '吃了百分之' + p + (row.confirmed && row.percent === p ? '，已选择' : '')}}">{{p}}%<text wx:if="{{p === 0 || p === 50 || p === 100}}" class="preset-label">{{p === 0 ? '没吃' : (p === 50 ? '一半' : '吃完')}}</text></button></view>
-      <view class="slider-caption">滑动微调比例</view>
-      <slider min="0" max="500" step="1" value="{{row.percent}}" activeColor="#246b56" backgroundColor="#e2e8da" block-color="#246b56" block-size="26" disabled="{{busy}}" data-name="{{row.name}}" bindchange="onSliderChange" aria-label="{{row.name}}食用比例，百分之0到500" />
-      <view class="scale"><text>0%</text><text>500%</text></view>
+      <view class="manual-line"><text class="manual-label">其他比例</text><input class="manual-input" type="number" maxlength="3" placeholder="0–500" value="{{row.inputText}}" disabled="{{busy}}" data-name="{{row.name}}" bindconfirm="applyManual" bindblur="applyManual" aria-label="{{row.name}}食用比例，可输入0到500" /><text class="manual-unit">%</text></view>
+      <view class="slider-caption">滑动微调（0%–100%）</view>
+      <slider min="0" max="100" step="1" value="{{row.sliderValue}}" activeColor="#246b56" backgroundColor="#e2e8da" block-color="#246b56" block-size="26" disabled="{{busy}}" data-name="{{row.name}}" bindchange="onSliderChange" aria-label="{{row.name}}食用比例，百分之0到100" />
+      <view class="scale"><text>0% 没吃</text><text>100% 吃完</text></view>
+      <view wx:if="{{row.confirmed && row.percent > 100}}" class="over-note">已选 {{row.percent}}%，比拍照时的份量多；滑条最多到 100%</view>
       <view wx:if="{{row.confirmed}}" class="intake reveal">估算摄入 <text>{{row.consumedG}} g</text></view>
     </view>
     <view wx:if="{{rows.length === 0}}" class="card">没有需要评估的食材，可以完成这一餐。</view>

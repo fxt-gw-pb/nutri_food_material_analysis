@@ -9,7 +9,9 @@ const common = fields([
 const meals = [...common, ...fields([
   ['updated_at', '记录更新时间'], ['dish_name', '识别菜名'], ['cooking_method', '识别烹饪方式'],
   ['meal_type', '餐次类型'], ['recognition_confidence', '识别置信度'],
-  ['plate_diameter_cm', '餐盘直径', 'cm'], ['image_file_id', '图片云存储ID'],
+  ['plate_diameter_cm', '餐盘直径', 'cm'],
+  ['plate_diameter_source', '盘径来源：user=用户选择，qr-card=对照二维码卡片量出，model-guess=没看到卡片时模型粗估，空=旧记录（用户选择）'],
+  ['image_file_id', '图片云存储ID'],
   ['meal_session_finished_at', '本顿饭拍摄结束时间'], ['discarded_at', '重拍作废时间'],
   ['model_name', '视觉模型名'], ['prompt_version', '提示词版本'],
   ['snapshot_available', '是否存在估重快照（1/0）'], ['algorithm_version', '快照估重算法版本'],

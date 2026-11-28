@@ -5,7 +5,7 @@ import { actorKey, assertCode, canAccessCode, normalizeCode, Session } from './a
 import { Doc, Store } from './db';
 import { HttpError } from './http';
 import { Images } from './images';
-import { modelFields, VisionQueue } from './vision';
+import { modelFields, qrCardAvailable, REFERENCE_CARD_CM, VisionQueue } from './vision';
 import type { AnalysisStatus, Dish, MealAnalysis, MealType } from '../../miniprogram/types/index';
 import { resolveMeal } from '../../miniprogram/utils/texture';
 import { buildAuditSnapshot, buildConsumption, validateExcluded } from '../../miniprogram/utils/evaluation';
@@ -46,6 +46,9 @@ export function docToMealAnalysis(doc: Doc): MealAnalysis {
     consumption: d.consumption as MealAnalysis['consumption'],
     auditSnapshot: d.auditSnapshot as MealAnalysis['auditSnapshot'],
     plateDiameterCm: d.plateDiameterCm as number | undefined,
+    scaleMode: d.scaleMode as MealAnalysis['scaleMode'],
+    plateDiameterSource: d.plateDiameterSource as MealAnalysis['plateDiameterSource'],
+    referenceCardVisible: d.referenceCardVisible as boolean | undefined,
     errorStage: d.errorStage as string | undefined,
     errorMessage: d.errorMessage as string | undefined,
     createdAt: d.createdAt as number,
@@ -85,6 +88,7 @@ export class Meals {
     const mealSessionId = typeof body.mealSessionId === 'string' ? body.mealSessionId.trim().slice(0, 80) : '';
     this.rateLimit(session);
     this.images.attach(session, imageFileId, participantCode);
+    const qrCard = body.scaleMode === 'qr-card' && qrCardAvailable(this.mock);
     const now = Date.now();
     const id = crypto.randomBytes(16).toString('hex');
     const doc: Doc = {
@@ -95,10 +99,12 @@ export class Meals {
       imageUrl: `/api/images/${imageFileId}`,
       participantCode,
       mealSessionId,
-      // 估重的尺度基准。没传就按 26cm 家用菜盘兜底（与云函数一致）。
-      plateDiameterCm: Number(body.plateDiameterCm) > 0 ? Number(body.plateDiameterCm) : 26,
+      // 估重的尺度基准。没传就按 26cm 家用菜盘兜底；二维码卡片模式识别后再写入量出的盘径（与云函数一致）。
+      ...(qrCard
+        ? { scaleMode: 'qr-card', referenceCardCm: REFERENCE_CARD_CM }
+        : { scaleMode: 'plate', plateDiameterSource: 'user', plateDiameterCm: Number(body.plateDiameterCm) > 0 ? Number(body.plateDiameterCm) : 26 }),
       status: 'pending',
-      ...modelFields(this.mock),
+      ...modelFields(this.mock, qrCard),
       result: { dish: null },
       selectedRecords: {},
       errorStage: '',
@@ -144,7 +150,7 @@ export class Meals {
   history(session: Session): MealAnalysis[] {
     const s = this.scope(session);
     // 与小程序一致：只看已完成的识别，最近 30 条。
-    return this.store.queryMeals(`${s.where} AND status = 'completed'`, s.params, 'createdAt DESC', 30).map(docToMealAnalysis);
+    return this.store.queryMeals(`${s.where} AND status = 'completed'`, s.params, 'createdAt DESC', 60).map(docToMealAnalysis);
   }
 
   remove(session: Session, id: string): void {

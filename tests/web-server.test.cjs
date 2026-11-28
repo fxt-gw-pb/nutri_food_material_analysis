@@ -207,6 +207,28 @@ test('识别失败写回阶段与原因；作废与删除', async () => {
   assert.equal(deps.images.get(ok.fileId), null);
 });
 
+test('二维码卡片模式：创建时不写盘径，识别后写入对照卡片量出的盘径', async () => {
+  const c = await researcher();
+  let received;
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  visionImpl = async (...args) => { received = args; await gate; return { dish: JSON.parse(JSON.stringify(DISH)), modelName: 'qwen3.8-max-0902',
+    scaleEstimate: { mode: 'qr-card', referenceCardCm: 4, plateDiameterCm: 21.5, referenceCardVisible: true } }; };
+  const img = await c.call('POST', '/api/images', JPEG);
+  const created = await c.call('POST', '/api/meals', { imageFileId: img.data.fileId, scaleMode: 'qr-card', participantCode: '001207', mealSessionId: 'q1' });
+  const before = deps.store.getMeal(created.data.analysisId);
+  assert.equal(before.scaleMode, 'qr-card');
+  assert.equal(before.plateDiameterCm, undefined);
+  release();
+  for (let i = 0; i < 50 && deps.store.getMeal(created.data.analysisId).status !== 'completed'; i += 1) await new Promise((r) => setTimeout(r, 10));
+  const meal = (await c.call('GET', `/api/meals/${created.data.analysisId}`)).data;
+  assert.deepEqual(received.slice(1), [0, { scale: { mode: 'qr-card', cardCm: 4 } }]);
+  assert.equal(meal.plateDiameterCm, 21.5);
+  assert.equal(meal.plateDiameterSource, 'qr-card');
+  assert.equal(meal.scaleMode, 'qr-card');
+  visionImpl = async () => ({ dish: JSON.parse(JSON.stringify(DISH)), modelName: 'qwen3.8-max-0902' });
+});
+
 test('服务重启：10 分钟内的未完成任务重新排队，更早的标记失败', async () => {
   const now = Date.now();
   deps.store.putMeal({ _id: 'a'.repeat(32), participantCode: 'x', status: 'recognizing', createdAt: now - 3600000, updatedAt: now, imageFileId: '' });

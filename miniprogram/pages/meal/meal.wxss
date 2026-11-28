@@ -1,0 +1,19 @@
+.meal-progress { display: flex; justify-content: space-between; align-items: baseline; margin: 0 4rpx 18rpx; font-size: 30rpx; font-weight: 600; }
+.finish-card { background: var(--warn-bg); border-color: #efdfbf; }
+.finish-title { font-size: 31rpx; font-weight: 700; color: var(--warn-text); }
+.finish-copy { margin-top: 8rpx; font-size: 26rpx; color: var(--warn-text); }
+.dish-card { padding: 0; overflow: hidden; border-left: 6rpx solid #c4a05c; }
+.dish-card-evaluated { border-left-color: #689c76; }
+button.dish-main { display: flex; align-items: center; gap: 22rpx; width: 100%; max-width: none; margin: 0; padding: 24rpx 26rpx; border-radius: 0; background: transparent; color: var(--text); text-align: left; line-height: 1.6; font-weight: 400; -webkit-touch-callout: none; }
+.dish-img { width: 132rpx; height: 132rpx; border-radius: 20rpx; flex-shrink: 0; }
+.dish-body { flex: 1; min-width: 0; }
+.dish-name { font-size: 34rpx; font-weight: 600; word-break: break-all; }
+.dish-meta { margin-top: 6rpx; font-size: 25rpx; color: var(--sub); word-break: break-all; }
+.dish-summary { margin-top: 4rpx; font-size: 25rpx; color: var(--primary-dark); }
+.record-chevron { color: #879578; font-size: 40rpx; }
+.dish-actions { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 16rpx 26rpx 22rpx; border-top: 1rpx solid var(--border); }
+.evaluation-status { border-radius: 12rpx; padding: 6rpx 14rpx; font-size: 25rpx; font-weight: 600; }
+.evaluation-status-evaluated { background: var(--primary-soft); color: var(--primary-dark); }
+.evaluation-status-pending { background: var(--warn-bg); color: var(--warn-text); }
+button.dish-evaluate { width: auto; min-width: 200rpx; min-height: 80rpx; padding: 12rpx 28rpx; font-size: 30rpx; }
+.list-tip { text-align: center; margin-top: 16rpx; }

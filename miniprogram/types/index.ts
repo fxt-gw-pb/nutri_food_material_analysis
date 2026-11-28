@@ -7,6 +7,14 @@
 /** 可信度等级（统一使用 高 / 中 / 低 三档） */
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
+/**
+ * 估重尺度：'plate' 拍照时选的餐盘直径；'qr-card' 照片里放一张边长 4 cm 的二维码卡片，
+ * 由识别时对照卡片量出餐盘口径（2026-11-28 起）。
+ */
+export type ScaleMode = 'plate' | 'qr-card';
+/** 本条记录采用的盘径从哪来：用户选的 / 对照二维码卡片量出 / 没看到卡片时模型粗估 */
+export type PlateDiameterSource = 'user' | 'qr-card' | 'model-guess';
+
 /** 餐次类型 */
 export type MealType =
   | 'breakfast'
@@ -79,8 +87,12 @@ export interface MealAnalysis {
   participantCode?: string;
   /** 用户选择重新拍照的时间；作废记录保留原始结果供追溯。 */
   discardedAt?: number;
-  /** 拍照时用户选的餐盘直径（cm）——估重的唯一真实尺度 */
+  /** 估重用的餐盘直径（cm）：用户选的，或二维码卡片模式下识别后量出的 */
   plateDiameterCm?: number;
+  scaleMode?: ScaleMode;
+  plateDiameterSource?: PlateDiameterSource;
+  /** 二维码卡片模式：识别时是否看到了卡片 */
+  referenceCardVisible?: boolean;
   status: AnalysisStatus;
   /** 餐次（早餐 / 午餐 / 加餐…），由结果页选择 */
   mealType?: MealType;

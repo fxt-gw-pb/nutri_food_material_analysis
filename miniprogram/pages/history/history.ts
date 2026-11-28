@@ -2,6 +2,7 @@ import { getMealHistory, deleteMealRecord } from '../../services/mealService';
 import { MealHistoryItem } from '../../types/index';
 import { formatDate, mealTypeLabel } from '../../utils/format';
 import { getActiveMealSession, startMealSession } from '../../utils/mealSession';
+import { DayGroup, groupHistory } from '../../utils/mealGroups';
 
 interface HistoryItemView extends MealHistoryItem {
   dateText: string;
@@ -16,6 +17,8 @@ Page({
   data: {
     items: [] as HistoryItemView[],
     visibleItems: [] as HistoryItemView[],
+    /** 分层展示：日期 → 哪一餐。每一餐的统计按全部记录算，只要有一道菜符合搜索/筛选就显示这一餐。 */
+    days: [] as DayGroup[],
     loaded: false,
     loading: false,
     error: '',
@@ -67,7 +70,11 @@ Page({
       (this.data.filter === 'all' || item.evaluationClass === this.data.filter) &&
       (!keyword || [item.participantCode || '', item.dishName, item.ingredientText].join(' ').toLowerCase().includes(keyword)),
     );
-    this.setData({ visibleItems });
+    const visibleIds = new Set(visibleItems.map((item) => item.analysisId));
+    const days = groupHistory(this.data.items)
+      .map((day) => ({ ...day, meals: day.meals.filter((meal) => meal.analysisIds.some((id) => visibleIds.has(id))) }))
+      .filter((day) => day.meals.length > 0);
+    this.setData({ visibleItems, days });
   },
   onSearchInput(e: WechatMiniprogram.Input) {
     this.setData({ keyword: e.detail.value });
@@ -83,6 +90,15 @@ Page({
   resetFilters() { this.setData({ keyword: '', filter: 'all' }); this.applyFilters(); },
   async onPullDownRefresh() {
     try { await this.loadHistory(); } finally { wx.stopPullDownRefresh(); }
+  },
+
+  /** 点进一餐：列出这一餐的全部菜品 */
+  goMeal(e: WechatMiniprogram.TouchEvent) {
+    const key = e.currentTarget.dataset.key as string;
+    const meal = this.data.days.reduce((found: DayGroup['meals'][number] | undefined, day) => found || day.meals.find((m) => m.key === key), undefined);
+    if (!meal) return;
+    const query = `participantCode=${encodeURIComponent(meal.participantCode)}&date=${meal.dateKey}&mealType=${meal.mealType || 'none'}`;
+    wx.navigateTo({ url: `/pages/meal/meal?${query}` });
   },
 
   goDetail(e: WechatMiniprogram.TouchEvent) {

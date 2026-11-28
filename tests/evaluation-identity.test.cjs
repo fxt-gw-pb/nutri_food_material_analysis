@@ -20,14 +20,16 @@ const database = {
   collection() {
     let filter = {};
     let count = Infinity;
+    let offset = 0;
     const query = {
       where(value) { filter = value; return query; },
       orderBy() { return query; },
+      skip(value) { offset = value; return query; },
       limit(value) { count = value; return query; },
       async get() {
         return { data: Object.values(documents)
           .filter((document) => Object.entries(filter).every(([key, value]) => document[key] === value))
-          .slice(0, count).map(clone) };
+          .slice(offset, offset + count).map(clone) };
       },
       doc(id) {
         return {
