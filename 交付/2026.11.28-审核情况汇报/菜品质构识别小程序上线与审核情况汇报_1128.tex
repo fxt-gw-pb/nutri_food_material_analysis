@@ -1,0 +1,136 @@
+% !TeX program = xelatex
+% A plain research-progress report. Build: python build.py progress-starter
+\AddToHook{package/projlib-language/before}{\RequirePackage{fvextra}}
+\documentclass[11pt,a4paper,plain,CN,colored-proof=false,
+  load-custom-latin-font-file=pku-font-latin.tex,
+  load-custom-math-font-file=pku-font-math.tex,
+  load-custom-cjk-font-file=pku-font-cjk.tex]{einfart}
+\input{settings}
+\renewcommand{\PKUDocumentType}{progress}
+\renewcommand{\PKUShortTitle}{菜品质构识别小程序上线与审核情况汇报}
+\renewcommand{\PKUSubtitle}{}
+\usepackage{pku-notes}
+\usepackage{placeins}
+\title{菜品质构识别小程序上线与审核情况汇报}
+\author{}
+\date{2026 年 11 月 28 日}
+
+\begin{document}
+\MakeReportTitle
+\begin{notesabstract}
+小程序 2026.11.27 版已于 11 月 28 日通过微信审核，目前线上可以正常使用。在此基础上新增二维码尺寸参照卡、按餐分组和评估输入的
+2026.11.28 版提交审核后，被以「涉及深度合成技术，个人主体尚未开放该服务类目」驳回，申诉后仍未通过；第二次申诉材料已经准备好。
+驳回的根本原因是主体资质：审核方把「调用大模型识别照片」视为深度合成，而个人主体不能开通这一类目，修改文案无法根本解决。
+需要请老师决定：研究是否需要超过 15 人同时使用，能否以单位名义申请小程序，以及是否启用已开发完成的网页版。
+\end{notesabstract}
+
+\section{当前线上版本}
+
+线上正式版为 2026.11.27（小程序 AppID \texttt{wxf338d5243e5cf268}，服务类目「工具-备忘录」）。主要功能如下：
+\begin{itemize}
+  \item 拍照识别：调用阿里云通义千问的图片理解接口，识别照片中的菜名和食材名称；
+  \item 估重：按用户选择的餐盘直径，用「餐盘面积 × 食材占比 × 厚度 × 密度」公式计算；
+  \item 质构与营养：软硬程度匹配实验室 TPA 实测数据库，营养素按《中国食物成分表标准版（第 6 版）》换算；
+  \item 饭后评估、每日汇总和每周随访问卷。
+\end{itemize}
+
+识别云函数 \texttt{analyzeMeal} 已于 11 月 28 日更新，以支持新版的二维码卡片模式。线上 2026.11.27 版仍走「选择餐盘直径」的原流程，
+这一流程使用的识别提示词与更新前逐字相同，并有自动测试锁定，所以已经采集的数据和后续数据口径一致。
+
+新版 2026.11.28 已上传为开发版本。即使不通过审核，也可以选为体验版，供已添加的体验成员使用。新版主要改动：
+\begin{itemize}
+  \item 打印 4×4 cm 的二维码卡片放在餐盘旁一起拍照，作为尺寸参照，老人不必再选餐盘大小；
+  \item 饮食记录按「哪一天 → 哪一餐 → 哪道菜」分层，方便老人找到某一餐，并逐道评估；
+  \item 饭后评估的滑条改为 0–100\%，另有快捷按钮和输入框，最多可填 500\%。
+\end{itemize}
+需要注意，份量校准系数是在「选餐盘直径」方式下拟合的，二维码卡片方式还没有用称重数据重新验证。
+
+\section{审核经过}
+
+11 月 24 日以来共提交审核三个版本，已申诉两次，经过见表~\ref{tab:review}。
+
+\begin{table}[htbp]
+\centering
+\caption{各版本审核经过}
+\label{tab:review}
+\small
+\begin{tabularx}{\textwidth}{@{}llYY@{}}
+\toprule
+时间 & 版本 & 审核结果 & 我们的处理\\
+\midrule
+11 月 27 日 & 2026.11.24 & 驳回：(1) 涉及深度合成，个人主体未开放；(2) 类目不符，应选「工具-备忘录」 & 改为「工具-备忘录」类目；在首页、拍照页、识别页、结果页第一屏加说明：AI 只识别菜名和食材，不生成任何内容\\
+\addlinespace[3pt]
+11 月 27 日 & 2026.11.27 & 驳回：涉及深度合成 & 提交申诉，说明只做图像识别、不生成内容\\
+\addlinespace[3pt]
+11 月 28 日 & 2026.11.27 & 申诉后审核通过 & 作为线上版本\\
+\addlinespace[3pt]
+11 月 28 日 & 2026.11.28 & 驳回：涉及深度合成 & 第一次申诉，仍被驳回；审核截图正是首页的「AI 只做识别，不生成任何内容」说明卡\\
+\addlinespace[3pt]
+11 月 28 日晚 & 2026.11.28 & — & 第二次申诉材料已备好：申诉说明，对照《互联网信息服务深度合成管理规定》第二十三条逐项说明，并附 4 张标注截图\\
+\bottomrule
+\end{tabularx}
+\TableNote{日期为收到审核结果的日期。四次驳回中，涉及深度合成的理由都是同一条：「小程序服务内容涉及深度合成技术（如：AI 问答、AI 换脸视频、AI 绘画等），属个人主体尚未开放服务类目，建议申请企业主体类型小程序」。}
+\end{table}
+\FloatBarrier
+
+\section{问题分析}
+
+小程序里的 AI 只做一件事：识别照片里是什么菜、有哪些食材。它没有对话问答、写作、绘画、换脸，也不生成或修改图片、文字和音视频。
+按《互联网信息服务深度合成管理规定》第二十三条的定义，深度合成是指利用生成合成类算法制作文本、图像、音视频等信息的技术，
+本小程序并不属于这一类。申诉材料就是按这个思路写的。
+
+但从审核结果看，审核方的判断标准更宽：只要调用了大模型，就倾向于认定为深度合成；而深度合成类目目前不对个人主体开放。
+有两点可以说明问题不在文案：
+\begin{enumerate}
+  \item 功能相同的 2026.11.27 版申诉后通过，2026.11.28 版却被驳回，结果取决于每次审核的具体判断，不稳定；
+  \item 11.28 版的驳回截图正是我们主动加的 AI 说明卡片。删掉说明虽然可能更容易过审，但这样做不如实，还可能被认定为规避审核，因此不采用。
+\end{enumerate}
+所以，即使这次申诉通过，以后每次更新功能都可能再次被驳回。要根本解决，需要更换小程序主体，或者不依赖微信审核。
+
+\clearpage
+\section{可选方案}
+
+\begin{table}[htbp]
+\centering
+\caption{后续方案比较}
+\label{tab:options}
+\small
+\begin{tabularx}{\textwidth}{@{}lYYY@{}}
+\toprule
+方案 & 做法 & 好处 & 限制\\
+\midrule
+A. 继续申诉 & 提交已备好的第二次申诉材料 & 不花钱，材料现成 & 结果不确定；以后每次更新都可能重复驳回\\
+\addlinespace[3pt]
+B. 使用体验版 & 把 2026.11.28 选为体验版，参与者的微信号加为体验成员 & 不需审核，马上可用 & 个人主体体验成员最多 15 人；需要逐个添加微信号\\
+\addlinespace[3pt]
+C. 单位主体 & 以学校或课题组所在单位等非个人主体注册小程序，或咨询能否变更主体，再开通相应类目 & 从根本上解决资质问题；代码可以直接复用 & 需要单位提供资质材料；流程和时间要向单位及微信平台确认；云端数据需要迁移\\
+\addlinespace[3pt]
+D. 网页版 & 部署到自购服务器，参与者用浏览器打开 & 不受微信审核限制；代码已完成并在本地测试通过 & 需要购买服务器和域名并办理 ICP 备案，约 3–5 周；服务器首年约 38–99 元；页面需按《人工智能生成合成内容标识办法》标注 AI 识别\\
+\bottomrule
+\end{tabularx}
+\TableNote{服务器价格是 2026 年 11 月云厂商新用户首年参考价，以下单页面为准。网页版和小程序共用同一套识别、估重、质构和营养计算代码，两者的数据口径一致。}
+\end{table}
+\FloatBarrier
+
+\paragraph{建议。}短期内 A、B 同时进行：一边提交申诉，一边用体验版继续采集数据，保证研究不中断。中长期在 C 和 D 中选一个；
+如果单位能提供主体资质，C 对老人使用最方便。
+
+\section{需要老师决定的事项}
+
+\begin{enumerate}
+  \item 近期同时使用的参与者是否超过 15 人？如果不超过，体验版可以暂时满足需要。
+  \item 能否以学校或课题组所在单位的名义申请（或变更）小程序主体？
+  \item 如果 C 不可行，是否同意购买服务器和域名、办理备案，改用网页版？
+\end{enumerate}
+
+\section{记录与来源}
+
+本报告依据项目仓库中的以下记录和微信公众平台的审核通知截图整理：
+\begin{itemize}
+  \item 各版本交付状态：\texttt{交付/2026.11.24-交付状态.md}、\texttt{交付/2026.11.27-交付状态.md}、\texttt{交付/2026.11.28-交付状态.md}；
+  \item 2026.11.28 版更新说明：\texttt{docs/release-2026-11-28.md}；
+  \item 第二次申诉材料：\texttt{交付/2026.11.28-申诉材料/}；
+  \item 网页版说明：\texttt{docs/web-version.md}；
+  \item 服务器、域名与备案准备：\texttt{docs/launch-prep-server-domain-icp.md}。
+\end{itemize}
+\end{document}

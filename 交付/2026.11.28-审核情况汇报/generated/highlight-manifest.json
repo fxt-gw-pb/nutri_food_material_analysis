@@ -1,0 +1,98 @@
+{
+  "configuration": {
+    "background": "#FAFAFA",
+    "commandprefix": "PKU",
+    "formatter_options": {
+      "escapeinside": "",
+      "mathescape": false,
+      "texcomments": false,
+      "verboptions": "breaklines=true,breakanywhere=true,fontsize=\\small,numbers=left,numbersep=8pt,xleftmargin=16pt,tabsize=4"
+    },
+    "lexer_options": {
+      "ensurenl": true,
+      "stripall": false,
+      "stripnl": false,
+      "tabsize": 0
+    },
+    "schema": 1,
+    "styles": {
+      "ide": {
+        "": "#222222",
+        "Comment": "#27744C",
+        "Error": "bold #8B0012",
+        "Generic.Deleted": "#8B0012",
+        "Generic.Emph": "italic",
+        "Generic.Heading": "bold #222222",
+        "Generic.Inserted": "#27744C",
+        "Generic.Output": "#666666",
+        "Generic.Strong": "bold",
+        "Generic.Subheading": "bold #222222",
+        "Generic.Traceback": "#8B0012",
+        "Keyword": "bold #6C398F",
+        "Keyword.Constant": "bold #175E91",
+        "Keyword.Type": "#175E91",
+        "Name.Attribute": "#175E91",
+        "Name.Builtin": "#175E91",
+        "Name.Class": "bold #795E26",
+        "Name.Constant": "#175E91",
+        "Name.Decorator": "#795E26",
+        "Name.Exception": "#8B0012",
+        "Name.Function": "bold #795E26",
+        "Name.Namespace": "#222222",
+        "Name.Tag": "#8B0012",
+        "Number": "#098658",
+        "Operator": "#444444",
+        "Operator.Word": "bold #6C398F",
+        "Punctuation": "#444444",
+        "String": "#A31515",
+        "String.Escape": "bold #8B0012"
+      },
+      "pku": {
+        "": "#222222",
+        "Comment": "#666666",
+        "Error": "bold #8B0012",
+        "Generic.Deleted": "#8B0012",
+        "Generic.Emph": "italic",
+        "Generic.Heading": "bold #8B0012",
+        "Generic.Inserted": "#821A27",
+        "Generic.Output": "#666666",
+        "Generic.Strong": "bold",
+        "Generic.Subheading": "bold #6F000E",
+        "Generic.Traceback": "#8B0012",
+        "Keyword": "bold #8B0012",
+        "Keyword.Constant": "bold #6F000E",
+        "Keyword.Type": "#6F000E",
+        "Name.Attribute": "#821A27",
+        "Name.Builtin": "#6F000E",
+        "Name.Class": "bold #6F000E",
+        "Name.Constant": "#6F000E",
+        "Name.Decorator": "#821A27",
+        "Name.Exception": "bold #8B0012",
+        "Name.Function": "bold #6F000E",
+        "Name.Namespace": "#222222",
+        "Name.Tag": "#8B0012",
+        "Number": "#9C2636",
+        "Operator": "#444444",
+        "Operator.Word": "bold #8B0012",
+        "Punctuation": "#444444",
+        "String": "#821A27",
+        "String.Escape": "bold #6F000E"
+      }
+    },
+    "supported_extensions": {
+      ".py": "python",
+      ".r": "r",
+      ".sql": "sql"
+    }
+  },
+  "configuration_sha256": "a67a1e6b5eee64724883701af57a751598163c7cb6a645dc407657ac997c0eb5",
+  "generator": "scripts/highlight.py",
+  "generator_sha256": "e88e4f2d709d6ba11203731d9e2c773d7ca61a3090a73cbb81c3fd0f16cb0db8",
+  "outputs": {
+    "generated/syntax-ide.tex": "ec965e0a712e88cae85e34583960c1e60be72a2e7ab6e10076780cc97b5e600d",
+    "generated/syntax-pku.tex": "9d596dab42ee3c8265919a9553881f555850a22c2ad1ff140dadfd52c07330d5"
+  },
+  "pygments_version": "2.19.2",
+  "schema": 1,
+  "sources": []
+}
